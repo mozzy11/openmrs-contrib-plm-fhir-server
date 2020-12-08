@@ -42,15 +42,23 @@ docker run -p 8080:8080 -e hapi.fhir.default_encoding=xml hapiproject/hapi:lates
 
 HAPI looks in the environment variables for properties in the [application.yaml](https://github.com/hapifhir/hapi-fhir-jpaserver-starter/blob/master/src/main/resources/application.yaml) file for defaults.
 
-### Configuration via overridden application.yaml file
+### Configuration via overridden application.yaml file and using Docker
 
 You can customize HAPI by telling HAPI to look for the configuration file in a different location, eg.:
 
 ```
+docker run -p 8090:8080 -v $(pwd)/yourLocalFolder:/configs -e "--spring.config.location=file:///configs/another.application.yaml" hapiproject/hapi:latest
+```
+Here, the configuration file (*another.application.yaml*) is placed locally in the folder *yourLocalFolder*.
+
+
+
+```
 docker run -p 8090:8080 -e "--spring.config.location=classpath:/another.application.yaml" hapiproject/hapi:latest
 ```
+Here, the configuration file (*another.application.yaml*) is part of the compiled set of resources.
 
-### Example docker-compose.yml
+### Example using docker-compose.yml for docker-compose
 
 ```
 version: '3.7'
@@ -312,4 +320,29 @@ elasticsearch.username=SomeUsername
 elasticsearch.password=SomePassword
 elasticsearch.required_index_status=YELLOW
 elasticsearch.schema_management_strategy=CREATE
+```
+
+## Enabling LastN
+
+Set `hapi.fhir.lastn_enabled=true` in the [application.yaml](https://github.com/hapifhir/hapi-fhir-jpaserver-starter/blob/master/src/main/resources/application.yaml) file to enable the $lastn operation on this server.  Note that the $lastn operation relies on Elasticsearch, so for $lastn to work, indexing must be enabled using Elasticsearch.
+
+## Example of a Dockerfile based on distroless images (for lower footprint and improved security)
+
+```code
+FROM maven:3.6.3-jdk-11-slim as build-hapi
+WORKDIR /tmp/hapi-fhir-jpaserver-starter
+
+COPY pom.xml .
+RUN mvn -ntp dependency:go-offline
+
+COPY src/ /tmp/hapi-fhir-jpaserver-starter/src/
+RUN mvn clean package spring-boot:repackage -Pboot
+
+FROM gcr.io/distroless/java:11
+
+COPY --from=build-hapi /tmp/hapi-fhir-jpaserver-starter/target/ROOT.war /app/main.war
+
+EXPOSE 8080
+WORKDIR /app
+CMD ["main.war"]
 ```
