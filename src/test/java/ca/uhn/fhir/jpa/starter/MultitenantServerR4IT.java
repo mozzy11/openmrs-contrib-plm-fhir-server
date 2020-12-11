@@ -2,8 +2,10 @@ package ca.uhn.fhir.jpa.starter;
 
 import ca.uhn.fhir.context.FhirContext;
 import ca.uhn.fhir.rest.api.CacheControlDirective;
+import ca.uhn.fhir.rest.client.api.IClientInterceptor;
 import ca.uhn.fhir.rest.client.api.IGenericClient;
 import ca.uhn.fhir.rest.client.api.ServerValidationModeEnum;
+import ca.uhn.fhir.rest.client.interceptor.BasicAuthInterceptor;
 import ca.uhn.fhir.rest.client.interceptor.LoggingInterceptor;
 import ca.uhn.fhir.rest.client.interceptor.UrlTenantSelectionInterceptor;
 import ca.uhn.fhir.rest.server.provider.ProviderConstants;
@@ -103,5 +105,11 @@ public class MultitenantServerR4IT {
     ourClient = ourCtx.newRestfulGenericClient(ourServerBase);
     ourClient.registerInterceptor(new LoggingInterceptor(true));
     ourClient.registerInterceptor(ourClientTenantInterceptor);
+    
+    //Create an HTTP basic auth interceptor
+    String username = "hapi";
+    String password = "hapi123";
+    IClientInterceptor authInterceptor = new BasicAuthInterceptor(username, password);
+    ourClient.registerInterceptor(authInterceptor);
   }
 }

@@ -29,6 +29,9 @@ import java.util.concurrent.TimeUnit;
 import static ca.uhn.fhir.util.TestUtil.waitForSize;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import ca.uhn.fhir.rest.client.api.IClientInterceptor;
+import ca.uhn.fhir.rest.client.interceptor.BasicAuthInterceptor;
+
 @ExtendWith(SpringExtension.class)
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, classes = Application.class, properties =
   {
@@ -130,6 +133,12 @@ public class ExampleServerDstu3IT {
     String ourServerBase = "http://localhost:" + port + "/fhir/";
     ourClient = ourCtx.newRestfulGenericClient(ourServerBase);
     ourClient.registerInterceptor(new LoggingInterceptor(true));
+    
+    //Create an HTTP basic auth interceptor
+    String username = "hapi";
+    String password = "hapi123";
+    IClientInterceptor authInterceptor = new BasicAuthInterceptor(username, password);
+    ourClient.registerInterceptor(authInterceptor);
   }
 
 }

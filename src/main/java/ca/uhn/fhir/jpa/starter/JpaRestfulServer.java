@@ -21,7 +21,7 @@ public class JpaRestfulServer extends BaseJpaRestfulServer {
   protected void initialize() throws ServletException {
     super.initialize();
 
-    // Add your own customization here
+    this.registerInterceptor(new AuthenticationInterceptor());
 
   }
 
