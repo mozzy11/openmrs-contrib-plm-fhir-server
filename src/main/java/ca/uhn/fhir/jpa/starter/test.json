@@ -1,0 +1,20 @@
+{
+	"resourceType": "Parameters",
+	"parameter": [{
+		"name": "measureReport",
+		"resource": {
+			"resourceType": "MeasureReport",
+			"status": "complete",
+			"type": "data-collection",
+			"measure": "Measure/TX_PVLS",
+			"evaluatedResource": [{
+				
+			}]
+		}
+	}, {
+		"name": "resource",
+		"resource": {
+			
+		}
+	}]
+}
