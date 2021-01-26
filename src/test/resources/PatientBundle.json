@@ -1,0 +1,256 @@
+{
+  "resourceType": "Bundle",
+  "type": "transaction",
+  "entry": [
+    {
+      "resource": {
+        "resourceType": "Patient",
+        "id": "337679e5-aae4-4d95-8583-758e6551b953",
+        "identifier": [
+          {
+            "id": "0f70ae9d-171e-496c-a7b2-d79f31cb6958",
+            "extension": [
+              {
+                "url": "http://fhir.openmrs.org/ext/patient/identifier#location",
+                "valueReference": {
+                  "reference": "Location/58c57d25-8d39-41ab-8422-108a0c277d98",
+                  "type": "Location",
+                  "display": "Outpatient Clinic"
+                }
+              }
+            ],
+            "use": "official",
+            "type": {
+              "text": "OpenMRS ID"
+            },
+            "value": "10000X"
+          }
+        ],
+        "active": true,
+        "name": [
+          {
+            "id": "93997606-a02f-4c1a-8d58-6bdf0a156bd7",
+            "family": "Obs_Test1",
+            "given": [
+              "Obs_Test1",
+              "Obs_Test1"
+            ]
+          }
+        ],
+        "telecom": [
+          {
+            "id": "5e7183af-f577-4f38-ad6a-a7f08cfaa72d",
+            "value": "4444"
+          }
+        ],
+        "gender": "male",
+        "birthDate": "1999-01-01",
+        "deceasedBoolean": false,
+        "address": [
+          {
+            "id": "19ff5387-d08b-4f70-bbca-2b50d20c1935",
+            "extension": [
+              {
+                "url": "http://fhir.openmrs.org/ext/address",
+                "extension": [
+                  {
+                    "url": "http://fhir.openmrs.org/ext/address#address1",
+                    "valueString": "Obs_adrees"
+                  }
+                ]
+              }
+            ],
+            "use": "home"
+          }
+        ]
+      },
+      "request": {
+        "method": "POST",
+        "url": "Patient"
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Patient",
+        "id": "457865b6-8f02-49e2-8a77-21b73eb266d4",
+        "identifier": [
+          {
+            "id": "51ae5b84-b14a-42c4-b4a6-9a18f7443741",
+            "extension": [
+              {
+                "url": "http://fhir.openmrs.org/ext/patient/identifier#location",
+                "valueReference": {
+                  "reference": "Location/58c57d25-8d39-41ab-8422-108a0c277d98",
+                  "type": "Location",
+                  "display": "Outpatient Clinic"
+                }
+              }
+            ],
+            "use": "official",
+            "type": {
+              "text": "OpenMRS ID"
+            },
+            "value": "10003P"
+          }
+        ],
+        "active": true,
+        "name": [
+          {
+            "id": "64187831-f4a0-4f43-a4fa-91b710c28580",
+            "family": "obs_patient2",
+            "given": [
+              "obs_patient2",
+              "obs_patient2"
+            ]
+          }
+        ],
+        "gender": "male",
+        "birthDate": "1999-01-01",
+        "deceasedBoolean": false,
+        "address": [
+          {
+            "id": "a4e33cda-04ec-43c1-890a-d6ac0cf71c26",
+            "extension": [
+              {
+                "url": "http://fhir.openmrs.org/ext/address",
+                "extension": [
+                  {
+                    "url": "http://fhir.openmrs.org/ext/address#address1",
+                    "valueString": "Adress2"
+                  }
+                ]
+              }
+            ],
+            "use": "home"
+          }
+        ]
+      },
+      "request": {
+        "method": "POST",
+        "url": "Patient"
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Patient",
+        "id": "5f5a1daf-e25b-43c7-9b4f-6764294abe1a",
+        "identifier": [
+          {
+            "id": "76308a71-1b5c-44d0-aae5-c4ab2a5ac2dd",
+            "extension": [
+              {
+                "url": "http://fhir.openmrs.org/ext/patient/identifier#location",
+                "valueReference": {
+                  "reference": "Location/58c57d25-8d39-41ab-8422-108a0c277d98",
+                  "type": "Location",
+                  "display": "Outpatient Clinic"
+                }
+              }
+            ],
+            "use": "official",
+            "type": {
+              "text": "OpenMRS ID"
+            },
+            "value": "10002T"
+          }
+        ],
+        "active": true,
+        "name": [
+          {
+            "id": "fe099bab-eb5b-4ad6-acf0-dff113ebe735",
+            "family": "obs_patient1",
+            "given": [
+              "obs_patient1",
+              "obs_patient1"
+            ]
+          }
+        ],
+        "gender": "male",
+        "birthDate": "1999-01-01",
+        "deceasedBoolean": false,
+        "address": [
+          {
+            "id": "88a07c9d-65d6-4673-bbbd-8b4945b0918d",
+            "extension": [
+              {
+                "url": "http://fhir.openmrs.org/ext/address",
+                "extension": [
+                  {
+                    "url": "http://fhir.openmrs.org/ext/address#address1",
+                    "valueString": "Adresss"
+                  }
+                ]
+              }
+            ],
+            "use": "home"
+          }
+        ]
+      },
+      "request": {
+        "method": "POST",
+        "url": "Patient"
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Patient",
+        "id": "9c5162a4-1cbb-4239-8813-da2d10be1ff4",
+        "identifier": [
+          {
+            "id": "d8332490-2d3a-41ea-b9f1-21c14dc79640",
+            "extension": [
+              {
+                "url": "http://fhir.openmrs.org/ext/patient/identifier#location",
+                "valueReference": {
+                  "reference": "Location/58c57d25-8d39-41ab-8422-108a0c277d98",
+                  "type": "Location",
+                  "display": "Outpatient Clinic"
+                }
+              }
+            ],
+            "use": "official",
+            "type": {
+              "text": "OpenMRS ID"
+            },
+            "value": "10001V"
+          }
+        ],
+        "active": true,
+        "name": [
+          {
+            "id": "cfa101e9-fe67-47e8-ae23-d0c4aa04c405",
+            "family": "Obs_Test2",
+            "given": [
+              "Obs_Test2",
+              "Obs_Test2"
+            ]
+          }
+        ],
+        "gender": "male",
+        "birthDate": "1988-01-01",
+        "deceasedBoolean": false,
+        "address": [
+          {
+            "id": "fe798b1c-8b90-4f31-935a-9f34cbb2b9df",
+            "extension": [
+              {
+                "url": "http://fhir.openmrs.org/ext/address",
+                "extension": [
+                  {
+                    "url": "http://fhir.openmrs.org/ext/address#address1",
+                    "valueString": "Obs_adress2"
+                  }
+                ]
+              }
+            ],
+            "use": "home"
+          }
+        ]
+      },
+      "request": {
+        "method": "POST",
+        "url": "Patient"
+      }
+    }
+  ]
+}
