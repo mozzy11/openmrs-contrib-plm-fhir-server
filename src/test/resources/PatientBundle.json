@@ -65,8 +65,8 @@
         ]
       },
       "request": {
-        "method": "POST",
-        "url": "Patient"
+        "method": "PUT",
+        "url": "Patient/337679e5-aae4-4d95-8583-758e6551b953"
       }
     },
     {
@@ -126,8 +126,8 @@
         ]
       },
       "request": {
-        "method": "POST",
-        "url": "Patient"
+        "method": "PUT",
+        "url": "Patient/457865b6-8f02-49e2-8a77-21b73eb266d4"
       }
     },
     {
@@ -187,8 +187,8 @@
         ]
       },
       "request": {
-        "method": "POST",
-        "url": "Patient"
+        "method": "PUT",
+        "url": "Patient/5f5a1daf-e25b-43c7-9b4f-6764294abe1a"
       }
     },
     {
@@ -248,8 +248,8 @@
         ]
       },
       "request": {
-        "method": "POST",
-        "url": "Patient"
+        "method": "PUT",
+        "url": "Patient/9c5162a4-1cbb-4239-8813-da2d10be1ff4"
       }
     }
   ]

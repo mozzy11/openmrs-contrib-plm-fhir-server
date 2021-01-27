@@ -12,6 +12,8 @@ import com.google.common.base.Charsets;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
+import org.apache.commons.io.output.ByteArrayOutputStream;
+import org.apache.http.HttpEntity;
 import org.apache.http.HttpHeaders;
 import org.apache.http.client.ClientProtocolException;
 import org.apache.http.client.methods.CloseableHttpResponse;
@@ -71,33 +73,28 @@ public class OperationClientTest {
   public void testCollectOperation() throws ClientProtocolException, IOException {
 
     // Post the Measure Resource
-
     Measure measure = readMeasureFromFile();
     ourClient.update().resource(measure).withId(MEASURE_RESOURCE_ID).encodedJson().execute();
 
-    // post the patient BUndle
-    postResource(ourServerBase, PATIENT_FILE_PATH);
-
     // post obs BUndle
-    postResource(ourServerBase, OBS_FILE_PATH);
+     postResource(ourServerBase , OBS_FILE_PATH);
 
     // fetch parameter
-    Parameters params = fetchParameter(ourServerBase + "$collect-data?periodStart=2020-01-01&periodEnd=2020-12-31");
+    String params = fetchParameter(ourServerBase + "/Measure/"+ MEASURE_RESOURCE_ID + "/$collect-data?periodStart=2021-01-01&periodEnd=2021-01-31");
 
-    // System.out.println(">>>>>>>>>>>*********************************<<<<<<<<<<<");
-    // System.out.println(expression);
-    // System.out.println(">>>>>>>>>>>*********************************<<<<<<<<<<<");
+    System.out.println(">>>>>>>>>>>*****************finally  aaaaaaa****************<<<<<<<<<<<");
+    System.out.println(params);
   }
 
   @BeforeEach
   void beforeEach() {
-    ourServerBase = "http://localhost:" + port + "/fhir/";
+    ourServerBase = "http://localhost:" + port + "/fhir";
     setHapiClient();
     ourHttpClient = HttpClientBuilder.create().build();
 
   }
 
-  private Parameters fetchParameter(String theUrl) throws IOException, ClientProtocolException {
+  private String fetchParameter(String theUrl) throws IOException, ClientProtocolException {
     Parameters parameters;
     HttpGet get = new HttpGet(theUrl);
 
@@ -112,22 +109,27 @@ public class OperationClientTest {
     get.addHeader(Constants.HEADER_CACHE_CONTROL, Constants.CACHE_CONTROL_NO_CACHE);
 
     CloseableHttpResponse resp = ourHttpClient.execute(get);
-    try {
-      assertEquals(EncodingEnum.JSON.getResourceContentTypeNonLegacy(),
-          resp.getFirstHeader(ca.uhn.fhir.rest.api.Constants.HEADER_CONTENT_TYPE).getValue().replaceAll(";.*", ""));
-      parameters = EncodingEnum.JSON.newParser(ourCtx).parseResource(Parameters.class,
-          IOUtils.toString(resp.getEntity().getContent(), Charsets.UTF_8));
-    } finally {
-      IOUtils.closeQuietly(resp);
-    }
-    return parameters;
+    // try {
+    //   assertEquals(EncodingEnum.JSON.getResourceContentTypeNonLegacy(),
+    //       resp.getFirstHeader(ca.uhn.fhir.rest.api.Constants.HEADER_CONTENT_TYPE).getValue().replaceAll(";.*", ""));
+    //   parameters = EncodingEnum.JSON.newParser(ourCtx).parseResource(Parameters.class,
+    //       IOUtils.toString(resp.getEntity().getContent(), Charsets.UTF_8));
+    // } finally {
+    //   IOUtils.closeQuietly(resp);
+    // }
+    // return parameters;
+     HttpEntity responseEntity = resp.getEntity();
+  ByteArrayOutputStream byteStream = new ByteArrayOutputStream();
+  responseEntity.writeTo(byteStream);
+
+  return byteStream.toString();
   }
 
-  private CloseableHttpResponse postResource(String theUrl, String path) throws IOException, ClientProtocolException {
+  private CloseableHttpResponse postResource(String theUrl, String filePath) throws IOException, ClientProtocolException {
     HttpPost post = new HttpPost(theUrl);
     String username = "hapi";
     String password = "hapi123";
-    String json = readJsonFile(path);
+    String json = readJsonFile(filePath);
 
     StringEntity entity = new StringEntity(json);
     post.setEntity(entity);
@@ -184,6 +186,5 @@ public class OperationClientTest {
   // responseEntity.writeTo(byteStream);
 
   // return byteStream.toString();
-  // //return resp.getStatusLine().toString();
 
 }

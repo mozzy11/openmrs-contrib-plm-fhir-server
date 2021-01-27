@@ -19,7 +19,7 @@
             },
             "criteria": {
                 "language": "application/x-fhir-query",
-                "expression": "Observation?code=https%3A%2F%2Fopenconceptlab.org%2Forgs%2FCIEL%2Fsources%2FCIEL|856,https%3A%2F%2Fopenconceptlab.org%2Forgs%2FCIEL%2Fsources%2FCIEL|1305&_include=Observation:patient"
+                "expression": "Observation?code=856AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA,1305AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA&_include=Observation:patient"
             }
         }]
     }]
