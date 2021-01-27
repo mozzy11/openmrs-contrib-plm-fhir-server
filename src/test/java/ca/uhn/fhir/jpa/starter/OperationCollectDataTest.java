@@ -1,6 +1,8 @@
 package ca.uhn.fhir.jpa.starter;
 
+import static org.junit.Assert.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -22,8 +24,12 @@ import org.apache.http.client.methods.HttpPost;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
+import org.hl7.fhir.r4.model.Bundle;
 import org.hl7.fhir.r4.model.Measure;
+import org.hl7.fhir.r4.model.MeasureReport;
+import org.hl7.fhir.r4.model.Observation;
 import org.hl7.fhir.r4.model.Parameters;
+import org.hl7.fhir.r4.model.Parameters.ParametersParameterComponent;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -50,7 +56,7 @@ import ca.uhn.fhir.rest.client.interceptor.LoggingInterceptor;
     // Empi beans are ambiguous as they are constructed multiple places. This is
     // evident when running in a spring boot environment
     "spring.main.allow-bean-definition-overriding=true" })
-public class OperationClientTest {
+public class OperationCollectDataTest {
 
   private static final org.slf4j.Logger ourLog = org.slf4j.LoggerFactory.getLogger(ExampleServerDstu2IT.class);
   private IGenericClient ourClient;
@@ -70,20 +76,38 @@ public class OperationClientTest {
   private int port;
 
   @Test
-  public void testCollectOperation() throws ClientProtocolException, IOException {
-
+  public void testCollectDataOperation() throws ClientProtocolException, IOException {
+    String paramName1 = "measureReport";
+    String paramName2 = "resource";
     // Post the Measure Resource
     Measure measure = readMeasureFromFile();
     ourClient.update().resource(measure).withId(MEASURE_RESOURCE_ID).encodedJson().execute();
+    // post theobs BUndle
+    postResource(ourServerBase, OBS_FILE_PATH);
+    // fetch parameter reuslt from the Opration
+    Parameters result = fetchParameter(ourServerBase + "/Measure/" + MEASURE_RESOURCE_ID
+        + "/$collect-data?periodStart=2021-01-01&periodEnd=2021-01-31");
 
-    // post obs BUndle
-     postResource(ourServerBase , OBS_FILE_PATH);
+    assertTrue(result.hasParameter(paramName1));
+    assertTrue(result.hasParameter(paramName2));
+    assertEquals(2, result.getParameter().size());
 
-    // fetch parameter
-    String params = fetchParameter(ourServerBase + "/Measure/"+ MEASURE_RESOURCE_ID + "/$collect-data?periodStart=2021-01-01&periodEnd=2021-01-31");
+    assertTrue(result.getParameter().get(0).getResource() instanceof MeasureReport);
 
-    System.out.println(">>>>>>>>>>>*****************finally  aaaaaaa****************<<<<<<<<<<<");
-    System.out.println(params);
+    assertTrue(result.getParameter().get(1).getResource() instanceof Bundle);
+    //get measure report from the Parameter Result
+    MeasureReport report = (MeasureReport) result.getParameter().get(0).getResource();
+    assertEquals(report.getEvaluatedResource().size(), 4);
+    assertEquals(report.getEvaluatedResource().size(), 4);
+    assertEquals(report.getMeasure(), "Measure/TX_PVLS");
+    assertEquals(report.getStatus(), MeasureReport.MeasureReportStatus.COMPLETE);
+    assertEquals(report.getType(), MeasureReport.MeasureReportType.DATACOLLECTION);
+
+    //get Observation Bundle from the Parameter Result
+    Bundle bundle = (Bundle)result.getParameter().get(1).getResource();
+    assertEquals(bundle.getEntry().size() , 2);
+    assertTrue(bundle.getEntry().get(0).getResource() instanceof Observation);
+    assertTrue(bundle.getEntry().get(1).getResource() instanceof Observation);
   }
 
   @BeforeEach
@@ -91,10 +115,9 @@ public class OperationClientTest {
     ourServerBase = "http://localhost:" + port + "/fhir";
     setHapiClient();
     ourHttpClient = HttpClientBuilder.create().build();
-
   }
 
-  private String fetchParameter(String theUrl) throws IOException, ClientProtocolException {
+  private Parameters fetchParameter(String theUrl) throws IOException, ClientProtocolException {
     Parameters parameters;
     HttpGet get = new HttpGet(theUrl);
 
@@ -109,23 +132,19 @@ public class OperationClientTest {
     get.addHeader(Constants.HEADER_CACHE_CONTROL, Constants.CACHE_CONTROL_NO_CACHE);
 
     CloseableHttpResponse resp = ourHttpClient.execute(get);
-    // try {
-    //   assertEquals(EncodingEnum.JSON.getResourceContentTypeNonLegacy(),
-    //       resp.getFirstHeader(ca.uhn.fhir.rest.api.Constants.HEADER_CONTENT_TYPE).getValue().replaceAll(";.*", ""));
-    //   parameters = EncodingEnum.JSON.newParser(ourCtx).parseResource(Parameters.class,
-    //       IOUtils.toString(resp.getEntity().getContent(), Charsets.UTF_8));
-    // } finally {
-    //   IOUtils.closeQuietly(resp);
-    // }
-    // return parameters;
-     HttpEntity responseEntity = resp.getEntity();
-  ByteArrayOutputStream byteStream = new ByteArrayOutputStream();
-  responseEntity.writeTo(byteStream);
-
-  return byteStream.toString();
+    try {
+      assertEquals(EncodingEnum.JSON.getResourceContentTypeNonLegacy(),
+          resp.getFirstHeader(ca.uhn.fhir.rest.api.Constants.HEADER_CONTENT_TYPE).getValue().replaceAll(";.*", ""));
+      parameters = EncodingEnum.JSON.newParser(ourCtx).parseResource(Parameters.class,
+          IOUtils.toString(resp.getEntity().getContent(), Charsets.UTF_8));
+    } finally {
+      IOUtils.closeQuietly(resp);
+    }
+    return parameters;
   }
 
-  private CloseableHttpResponse postResource(String theUrl, String filePath) throws IOException, ClientProtocolException {
+  private CloseableHttpResponse postResource(String theUrl, String filePath)
+      throws IOException, ClientProtocolException {
     HttpPost post = new HttpPost(theUrl);
     String username = "hapi";
     String password = "hapi123";
@@ -143,7 +162,6 @@ public class OperationClientTest {
 
     post.addHeader(Constants.HEADER_CACHE_CONTROL, Constants.CACHE_CONTROL_NO_CACHE);
     CloseableHttpResponse resp = ourHttpClient.execute(post);
-
     return resp;
   }
 
@@ -165,7 +183,6 @@ public class OperationClientTest {
 
     ourClient = ourCtx.newRestfulGenericClient(ourServerBase);
     ourClient.registerInterceptor(new LoggingInterceptor(true));
-
     // Create an HTTP basic auth interceptor
     String username = "hapi";
     String password = "hapi123";
@@ -180,11 +197,4 @@ public class OperationClientTest {
     Measure measure = parser.parseResource(Measure.class, json);
     return measure;
   }
-
-  // HttpEntity responseEntity = resp.getEntity();
-  // ByteArrayOutputStream byteStream = new ByteArrayOutputStream();
-  // responseEntity.writeTo(byteStream);
-
-  // return byteStream.toString();
-
 }
