@@ -80,9 +80,4 @@ public class FhirServerConfigR4 extends BaseJavaConfigR4 {
       return null;
     }
   }
-
-  @Bean
-  public CollectDataResourceProvider collectDataResourceProvider() {
-      return new CollectDataResourceProvider();
-  }
 }

@@ -24,6 +24,7 @@ import org.hl7.fhir.r4.model.MeasureReport;
 import org.hl7.fhir.r4.model.Parameters;
 import org.hl7.fhir.r4.model.Reference;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
 
 import ca.uhn.fhir.context.FhirContext;
 import ca.uhn.fhir.jpa.rp.r4.MeasureResourceProvider;
@@ -33,6 +34,7 @@ import ca.uhn.fhir.rest.annotation.OperationParam;
 import ca.uhn.fhir.rest.api.Constants;
 import ca.uhn.fhir.rest.server.exceptions.ResourceNotFoundException;
 
+@Component
 public class CollectDataResourceProvider {
 
     @Autowired
