@@ -4,7 +4,5 @@
         "**/.project": true,
         "**/.settings": true,
         "**/.factorypath": true
-    },
-    "jupyter.jupyterServerType": "local",
-    "java.configuration.updateBuildConfiguration": "automatic"
+    }
 }

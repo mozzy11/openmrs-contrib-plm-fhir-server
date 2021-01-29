@@ -14,10 +14,6 @@ public class PlirConstants {
     public static final String PARAMETER_NAME_MEASURE_REPORT = "measureReport";
 
     public static final String PARAMETER_NAME_RESOURCE = "resource";
-
-    public static final String MEASURE_RESOURCE_MEASURE = "Measure/TX_PVLS";
-
-
 }
 
 

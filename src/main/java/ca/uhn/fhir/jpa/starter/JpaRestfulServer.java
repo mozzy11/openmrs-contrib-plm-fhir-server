@@ -14,7 +14,6 @@ public class JpaRestfulServer extends BaseJpaRestfulServer {
   @Autowired
   CollectDataResourceProvider collectDataResourceProvider;
 
-
   private static final long serialVersionUID = 1L;
 
   public JpaRestfulServer() {

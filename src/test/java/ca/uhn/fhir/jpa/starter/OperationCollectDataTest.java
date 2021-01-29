@@ -24,11 +24,13 @@ import org.apache.http.client.methods.HttpPost;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
+import org.apache.http.util.EntityUtils;
 import org.hl7.fhir.r4.model.Bundle;
 import org.hl7.fhir.r4.model.Measure;
 import org.hl7.fhir.r4.model.MeasureReport;
 import org.hl7.fhir.r4.model.Observation;
 import org.hl7.fhir.r4.model.Parameters;
+import org.hl7.fhir.r4.model.Patient;
 import org.hl7.fhir.r4.model.Parameters.ParametersParameterComponent;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -66,11 +68,13 @@ public class OperationCollectDataTest {
 
   private static String OBS_FILE_PATH = "src/test/resources/ObsBundle.json";
 
-  private static String PATIENT_FILE_PATH = "src/test/resources/PatientBundle.json";
-
   private static String MEASURE_FILE_PATH = "src/test/resources/FhirMeasure.json";
 
   private static String MEASURE_RESOURCE_ID = "TX-PVLS";
+
+  private static String USER_NAME= "hapi";
+
+  private static String USER_PASSWORD= "hapi123";
 
   @LocalServerPort
   private int port;
@@ -87,58 +91,57 @@ public class OperationCollectDataTest {
     // fetch parameter reuslt from the Opration
     Parameters result = fetchParameter(ourServerBase + "/Measure/" + MEASURE_RESOURCE_ID
         + "/$collect-data?periodStart=2021-01-01&periodEnd=2021-01-31");
-
+   
     assertTrue(result.hasParameter(paramName1));
     assertTrue(result.hasParameter(paramName2));
-    assertEquals(2, result.getParameter().size());
+    assertEquals(5, result.getParameter().size());
 
     assertTrue(result.getParameter().get(0).getResource() instanceof MeasureReport);
-
-    assertTrue(result.getParameter().get(1).getResource() instanceof Bundle);
+    assertTrue(result.getParameter().get(1).getResource() instanceof Observation);
+    assertTrue(result.getParameter().get(2).getResource() instanceof Observation);
+    assertTrue(result.getParameter().get(3).getResource() instanceof Patient);
+    assertTrue(result.getParameter().get(4).getResource() instanceof Patient);
     //get measure report from the Parameter Result
-    MeasureReport report = (MeasureReport) result.getParameter().get(0).getResource();
-    assertEquals(report.getEvaluatedResource().size(), 4);
+    MeasureReport report = (MeasureReport)result.getParameter().get(0).getResource();
     assertEquals(report.getEvaluatedResource().size(), 4);
     assertEquals(report.getMeasure(), "Measure/TX_PVLS");
     assertEquals(report.getStatus(), MeasureReport.MeasureReportStatus.COMPLETE);
-    assertEquals(report.getType(), MeasureReport.MeasureReportType.DATACOLLECTION);
-
+    assertEquals(report.getType(),
+    MeasureReport.MeasureReportType.DATACOLLECTION);
     //get Observation Bundle from the Parameter Result
-    Bundle bundle = (Bundle)result.getParameter().get(1).getResource();
-    assertEquals(bundle.getEntry().size() , 2);
-    assertTrue(bundle.getEntry().get(0).getResource() instanceof Observation);
-    assertTrue(bundle.getEntry().get(1).getResource() instanceof Observation);
+    Observation observation1 = (Observation)result.getParameter().get(1).getResource();
+    assertEquals(observation1.getCode().getCodingFirstRep().getCode(), "1305AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
+
+    Observation observation2 = (Observation)result.getParameter().get(2).getResource();
+    assertEquals(observation2.getCode().getCodingFirstRep().getCode(), "856AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
   }
 
   @BeforeEach
   void beforeEach() {
     ourServerBase = "http://localhost:" + port + "/fhir";
-    setHapiClient();
+    ourCtx = FhirContext.forR4();
+    ourCtx.getRestfulClientFactory().setServerValidationMode(ServerValidationModeEnum.NEVER);
+    ourCtx.getRestfulClientFactory().setSocketTimeout(1200 * 1000);
+    ourCtx.setParserErrorHandler(new StrictErrorHandler());
+
     ourHttpClient = HttpClientBuilder.create().build();
+    setHapiClient(); 
   }
 
   private Parameters fetchParameter(String theUrl) throws IOException, ClientProtocolException {
     Parameters parameters;
     HttpGet get = new HttpGet(theUrl);
 
-    String username = "hapi";
-    String password = "hapi123";
-
-    String auth = username + ":" + password;
+    String auth = USER_NAME + ":" + USER_PASSWORD;
     byte[] encodedAuth = Base64.encodeBase64(auth.getBytes(StandardCharsets.ISO_8859_1));
     String authHeader = "Basic " + new String(encodedAuth);
     get.addHeader(HttpHeaders.AUTHORIZATION, authHeader);
 
     get.addHeader(Constants.HEADER_CACHE_CONTROL, Constants.CACHE_CONTROL_NO_CACHE);
 
-    CloseableHttpResponse resp = ourHttpClient.execute(get);
-    try {
-      assertEquals(EncodingEnum.JSON.getResourceContentTypeNonLegacy(),
-          resp.getFirstHeader(ca.uhn.fhir.rest.api.Constants.HEADER_CONTENT_TYPE).getValue().replaceAll(";.*", ""));
-      parameters = EncodingEnum.JSON.newParser(ourCtx).parseResource(Parameters.class,
-          IOUtils.toString(resp.getEntity().getContent(), Charsets.UTF_8));
-    } finally {
-      IOUtils.closeQuietly(resp);
+    try (CloseableHttpResponse resp = ourHttpClient.execute(get)) {
+      parameters = ourCtx.newJsonParser().parseResource(Parameters.class,
+          EntityUtils.toString(resp.getEntity(), Charsets.UTF_8));
     }
     return parameters;
   }
@@ -146,8 +149,6 @@ public class OperationCollectDataTest {
   private CloseableHttpResponse postResource(String theUrl, String filePath)
       throws IOException, ClientProtocolException {
     HttpPost post = new HttpPost(theUrl);
-    String username = "hapi";
-    String password = "hapi123";
     String json = readJsonFile(filePath);
 
     StringEntity entity = new StringEntity(json);
@@ -155,7 +156,7 @@ public class OperationCollectDataTest {
     post.setHeader("Accept", "application/json");
     post.setHeader("Content-type", "application/json");
 
-    String auth = username + ":" + password;
+    String auth = USER_NAME + ":" + USER_PASSWORD;
     byte[] encodedAuth = Base64.encodeBase64(auth.getBytes(StandardCharsets.ISO_8859_1));
     String authHeader = "Basic " + new String(encodedAuth);
     post.addHeader(HttpHeaders.AUTHORIZATION, authHeader);
@@ -176,17 +177,10 @@ public class OperationCollectDataTest {
   }
 
   private void setHapiClient() {
-    ourCtx = FhirContext.forR4();
-    ourCtx.getRestfulClientFactory().setServerValidationMode(ServerValidationModeEnum.NEVER);
-    ourCtx.getRestfulClientFactory().setSocketTimeout(1200 * 1000);
-    ourCtx.setParserErrorHandler(new StrictErrorHandler());
-
     ourClient = ourCtx.newRestfulGenericClient(ourServerBase);
     ourClient.registerInterceptor(new LoggingInterceptor(true));
     // Create an HTTP basic auth interceptor
-    String username = "hapi";
-    String password = "hapi123";
-    IClientInterceptor authInterceptor = new BasicAuthInterceptor(username, password);
+    IClientInterceptor authInterceptor = new BasicAuthInterceptor(USER_NAME, USER_PASSWORD);
     ourClient.registerInterceptor(authInterceptor);
   }
 
