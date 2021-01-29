@@ -53,7 +53,7 @@ public class CollectDataResourceProvider {
         }
         String fullUrl = constructUrl(theServletRequest, measure, periodStart, periodEnd);
         Parameters parameters = new Parameters();
-        Bundle bundle = fetchBundle(fullUrl);
+        Bundle bundle = fetchBundle(fullUrl, theServletRequest);
         MeasureReport report = generateMeasureReport(bundle, measure);
 
         parameters.addParameter(new Parameters.ParametersParameterComponent()
@@ -105,16 +105,19 @@ public class CollectDataResourceProvider {
         return fullUrl;
     }
 
-    private Bundle fetchBundle(String theUrl) throws IOException, ClientProtocolException {
+    private Bundle fetchBundle(String theUrl, HttpServletRequest httpRequest)
+            throws IOException, ClientProtocolException {
         Bundle bundle;
         CloseableHttpClient ourHttpClient = HttpClientBuilder.create().build();
         HttpGet get = new HttpGet(theUrl);
 
-        String username = "hapi";
-        String password = "hapi123";
-        String auth = username + ":" + password;
-        byte[] encodedAuth = Base64.encodeBase64(auth.getBytes(StandardCharsets.ISO_8859_1));
-        String authHeader = "Basic " + new String(encodedAuth);
+        final String authorization = httpRequest.getHeader("Authorization");
+
+        String base64Credentials = "";
+        if (authorization != null && authorization.toLowerCase().startsWith("basic")) {
+            base64Credentials = authorization.substring("Basic".length()).trim();
+        }
+        String authHeader = "Basic " + new String(base64Credentials);
         get.addHeader(HttpHeaders.AUTHORIZATION, authHeader);
         get.addHeader(Constants.HEADER_CACHE_CONTROL, Constants.CACHE_CONTROL_NO_CACHE);
 

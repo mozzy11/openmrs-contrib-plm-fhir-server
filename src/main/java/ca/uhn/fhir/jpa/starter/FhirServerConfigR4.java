@@ -85,5 +85,4 @@ public class FhirServerConfigR4 extends BaseJavaConfigR4 {
   public CollectDataResourceProvider collectDataResourceProvider() {
       return new CollectDataResourceProvider();
   }
-
 }

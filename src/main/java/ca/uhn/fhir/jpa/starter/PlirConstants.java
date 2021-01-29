@@ -15,5 +15,3 @@ public class PlirConstants {
 
     public static final String PARAMETER_NAME_RESOURCE = "resource";
 }
-
-
