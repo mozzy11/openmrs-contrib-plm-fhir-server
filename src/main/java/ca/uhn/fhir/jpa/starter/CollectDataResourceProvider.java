@@ -1,7 +1,6 @@
 package ca.uhn.fhir.jpa.starter;
 
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -9,9 +8,7 @@ import javax.servlet.http.HttpServletRequest;
 
 import com.google.common.base.Charsets;
 
-import org.apache.commons.codec.binary.Base64;
 import org.apache.http.HttpHeaders;
-import org.apache.http.client.ClientProtocolException;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.impl.client.CloseableHttpClient;
@@ -32,10 +29,12 @@ import ca.uhn.fhir.rest.annotation.IdParam;
 import ca.uhn.fhir.rest.annotation.Operation;
 import ca.uhn.fhir.rest.annotation.OperationParam;
 import ca.uhn.fhir.rest.api.Constants;
+import ca.uhn.fhir.rest.server.exceptions.InternalErrorException;
 import ca.uhn.fhir.rest.server.exceptions.ResourceNotFoundException;
 
 @Component
 public class CollectDataResourceProvider {
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(CollectDataResourceProvider.class);
 
     @Autowired
     private MeasureResourceProvider measureResourceProvider;
@@ -45,8 +44,7 @@ public class CollectDataResourceProvider {
     @Operation(name = PlirConstants.OPERATION_COLLECT_DATA, idempotent = true, type = Measure.class)
     public Parameters collectDataOperation(HttpServletRequest theServletRequest, @IdParam IdType theId,
             @OperationParam(name = PlirConstants.PARAM_PERIOD_START, min = 1, max = 1) String periodStart,
-            @OperationParam(name = PlirConstants.PARAM_PERIOD_END, min = 1, max = 1) String periodEnd)
-            throws ClientProtocolException, IOException {
+            @OperationParam(name = PlirConstants.PARAM_PERIOD_END, min = 1, max = 1) String periodEnd) {
 
         Measure measure = this.measureResourceProvider.getDao().read(theId);
 
@@ -55,17 +53,21 @@ public class CollectDataResourceProvider {
         }
         String fullUrl = constructUrl(theServletRequest, measure, periodStart, periodEnd);
         Parameters parameters = new Parameters();
-        Bundle bundle = fetchBundle(fullUrl, theServletRequest);
-        MeasureReport report = generateMeasureReport(bundle, measure);
+        try {
+            Bundle bundle = fetchBundle(fullUrl, theServletRequest);
+            MeasureReport report = generateMeasureReport(bundle, measure);
 
-        parameters.addParameter(new Parameters.ParametersParameterComponent()
-                .setName(PlirConstants.PARAMETER_NAME_MEASURE_REPORT).setResource(report));
-        generateObservationData(parameters, bundle);
+            parameters.addParameter(new Parameters.ParametersParameterComponent()
+                    .setName(PlirConstants.PARAMETER_NAME_MEASURE_REPORT).setResource(report));
+            generateObservationData(parameters, bundle);
+        } catch (IOException e) {
+            log.error("Caught exception while evaluating measure {}", theId.getIdPart(), e);
+            throw new InternalErrorException("Could not process measure " + theId, e);
+        }
         return parameters;
     }
 
-    public MeasureReport generateMeasureReport(Bundle bundle, Measure measure)
-            throws ClientProtocolException, IOException {
+    private MeasureReport generateMeasureReport(Bundle bundle, Measure measure) throws IOException {
         StringBuffer measureName = new StringBuffer(measure.getResourceType().name());
         measureName.append("/");
         measureName.append(measure.getIdentifierFirstRep().getValue());
@@ -81,8 +83,7 @@ public class CollectDataResourceProvider {
         return report;
     }
 
-    public void generateObservationData(Parameters parameters, Bundle bundle)
-            throws ClientProtocolException, IOException {
+    private void generateObservationData(Parameters parameters, Bundle bundle) throws IOException {
         bundle.getEntry().stream().filter(Bundle.BundleEntryComponent::hasResource)
                 .map(Bundle.BundleEntryComponent::getResource)
                 .forEach(r -> parameters.addParameter().setName(PlirConstants.PARAMETER_NAME_RESOURCE).setResource(r));
@@ -107,8 +108,7 @@ public class CollectDataResourceProvider {
         return fullUrl;
     }
 
-    private Bundle fetchBundle(String theUrl, HttpServletRequest httpRequest)
-            throws IOException, ClientProtocolException {
+    private Bundle fetchBundle(String theUrl, HttpServletRequest httpRequest) throws IOException {
         Bundle bundle;
         CloseableHttpClient ourHttpClient = HttpClientBuilder.create().build();
         HttpGet get = new HttpGet(theUrl);

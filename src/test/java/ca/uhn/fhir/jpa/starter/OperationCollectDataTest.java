@@ -1,6 +1,5 @@
 package ca.uhn.fhir.jpa.starter;
 
-import static org.junit.Assert.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -13,9 +12,6 @@ import com.google.common.base.Charsets;
 
 import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.io.FileUtils;
-import org.apache.commons.io.IOUtils;
-import org.apache.commons.io.output.ByteArrayOutputStream;
-import org.apache.http.HttpEntity;
 import org.apache.http.HttpHeaders;
 import org.apache.http.client.ClientProtocolException;
 import org.apache.http.client.methods.CloseableHttpResponse;
@@ -25,13 +21,11 @@ import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.util.EntityUtils;
-import org.hl7.fhir.r4.model.Bundle;
 import org.hl7.fhir.r4.model.Measure;
 import org.hl7.fhir.r4.model.MeasureReport;
 import org.hl7.fhir.r4.model.Observation;
 import org.hl7.fhir.r4.model.Parameters;
 import org.hl7.fhir.r4.model.Patient;
-import org.hl7.fhir.r4.model.Parameters.ParametersParameterComponent;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -43,7 +37,6 @@ import ca.uhn.fhir.context.FhirContext;
 import ca.uhn.fhir.parser.IParser;
 import ca.uhn.fhir.parser.StrictErrorHandler;
 import ca.uhn.fhir.rest.api.Constants;
-import ca.uhn.fhir.rest.api.EncodingEnum;
 import ca.uhn.fhir.rest.client.api.IClientInterceptor;
 import ca.uhn.fhir.rest.client.api.IGenericClient;
 import ca.uhn.fhir.rest.client.api.ServerValidationModeEnum;
@@ -60,7 +53,7 @@ import ca.uhn.fhir.rest.client.interceptor.LoggingInterceptor;
     "spring.main.allow-bean-definition-overriding=true" })
 public class OperationCollectDataTest {
 
-  private static final org.slf4j.Logger ourLog = org.slf4j.LoggerFactory.getLogger(ExampleServerDstu2IT.class);
+  private static final org.slf4j.Logger ourLog = org.slf4j.LoggerFactory.getLogger(OperationCollectDataTest.class);
   private IGenericClient ourClient;
   private FhirContext ourCtx;
   protected static CloseableHttpClient ourHttpClient;
@@ -72,9 +65,9 @@ public class OperationCollectDataTest {
 
   private static String MEASURE_RESOURCE_ID = "TX-PVLS";
 
-  private static String USER_NAME= "hapi";
+  private static String USER_NAME = "hapi";
 
-  private static String USER_PASSWORD= "hapi123";
+  private static String USER_PASSWORD = "hapi123";
 
   @LocalServerPort
   private int port;
@@ -91,7 +84,7 @@ public class OperationCollectDataTest {
     // fetch parameter reuslt from the Opration
     Parameters result = fetchParameter(ourServerBase + "/Measure/" + MEASURE_RESOURCE_ID
         + "/$collect-data?periodStart=2021-01-01&periodEnd=2021-01-31");
-   
+
     assertTrue(result.hasParameter(paramName1));
     assertTrue(result.hasParameter(paramName2));
     assertEquals(5, result.getParameter().size());
@@ -101,18 +94,17 @@ public class OperationCollectDataTest {
     assertTrue(result.getParameter().get(2).getResource() instanceof Observation);
     assertTrue(result.getParameter().get(3).getResource() instanceof Patient);
     assertTrue(result.getParameter().get(4).getResource() instanceof Patient);
-    //get measure report from the Parameter Result
-    MeasureReport report = (MeasureReport)result.getParameter().get(0).getResource();
+    // get measure report from the Parameter Result
+    MeasureReport report = (MeasureReport) result.getParameter().get(0).getResource();
     assertEquals(report.getEvaluatedResource().size(), 4);
     assertEquals(report.getMeasure(), "Measure/TX_PVLS");
     assertEquals(report.getStatus(), MeasureReport.MeasureReportStatus.COMPLETE);
-    assertEquals(report.getType(),
-    MeasureReport.MeasureReportType.DATACOLLECTION);
-    //get Observation Bundle from the Parameter Result
-    Observation observation1 = (Observation)result.getParameter().get(1).getResource();
+    assertEquals(report.getType(), MeasureReport.MeasureReportType.DATACOLLECTION);
+    // get Observation Bundle from the Parameter Result
+    Observation observation1 = (Observation) result.getParameter().get(1).getResource();
     assertEquals(observation1.getCode().getCodingFirstRep().getCode(), "1305AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
 
-    Observation observation2 = (Observation)result.getParameter().get(2).getResource();
+    Observation observation2 = (Observation) result.getParameter().get(2).getResource();
     assertEquals(observation2.getCode().getCodingFirstRep().getCode(), "856AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
   }
 
@@ -125,7 +117,7 @@ public class OperationCollectDataTest {
     ourCtx.setParserErrorHandler(new StrictErrorHandler());
 
     ourHttpClient = HttpClientBuilder.create().build();
-    setHapiClient(); 
+    setHapiClient();
   }
 
   private Parameters fetchParameter(String theUrl) throws IOException, ClientProtocolException {
