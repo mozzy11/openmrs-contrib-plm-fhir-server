@@ -2,6 +2,7 @@ package ca.uhn.fhir.jpa.starter;
 
 import ca.uhn.fhir.context.ConfigurationException;
 import ca.uhn.fhir.jpa.config.BaseJavaConfigDstu2;
+import ca.uhn.fhir.jpa.rp.r4.MeasureResourceProvider;
 import ca.uhn.fhir.jpa.search.DatabaseBackedPagingProvider;
 import ca.uhn.fhir.jpa.starter.annotations.OnDSTU2Condition;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -65,5 +66,9 @@ public class FhirServerConfigDstu2 extends BaseJavaConfigDstu2 {
     return retVal;
   }
 
-
+  //Added to fix test failures for R2 context 
+  @Bean()
+  public MeasureResourceProvider measureResourceProvider() {
+      return new MeasureResourceProvider();
+  }
 }
