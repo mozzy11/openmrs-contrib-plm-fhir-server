@@ -2,6 +2,7 @@ package ca.uhn.fhir.jpa.starter;
 
 import ca.uhn.fhir.context.ConfigurationException;
 import ca.uhn.fhir.jpa.config.BaseJavaConfigDstu3;
+import ca.uhn.fhir.jpa.rp.r4.MeasureResourceProvider;
 import ca.uhn.fhir.jpa.search.DatabaseBackedPagingProvider;
 import ca.uhn.fhir.jpa.search.lastn.ElasticsearchSvcImpl;
 import ca.uhn.fhir.jpa.starter.annotations.OnDSTU3Condition;
@@ -78,4 +79,9 @@ public class FhirServerConfigDstu3 extends BaseJavaConfigDstu3 {
     }
   }
 
+  //Added to fix test failures for R3 context 
+  @Bean()
+  public MeasureResourceProvider measureResourceProvider() {
+      return new MeasureResourceProvider();
+  }
 }

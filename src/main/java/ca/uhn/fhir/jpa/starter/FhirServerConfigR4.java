@@ -80,5 +80,4 @@ public class FhirServerConfigR4 extends BaseJavaConfigR4 {
       return null;
     }
   }
-
 }

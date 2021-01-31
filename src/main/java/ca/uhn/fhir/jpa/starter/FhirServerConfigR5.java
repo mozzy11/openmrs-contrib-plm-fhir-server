@@ -2,6 +2,7 @@ package ca.uhn.fhir.jpa.starter;
 
 import ca.uhn.fhir.context.ConfigurationException;
 import ca.uhn.fhir.jpa.config.BaseJavaConfigR5;
+import ca.uhn.fhir.jpa.rp.r4.MeasureResourceProvider;
 import ca.uhn.fhir.jpa.search.DatabaseBackedPagingProvider;
 import ca.uhn.fhir.jpa.search.lastn.ElasticsearchSvcImpl;
 import ca.uhn.fhir.jpa.starter.annotations.OnR5Condition;
@@ -80,6 +81,9 @@ public class FhirServerConfigR5 extends BaseJavaConfigR5 {
       return null;
     }
   }
-
-
+//Added to fix test failures for R5 context 
+  @Bean()
+  public MeasureResourceProvider measureResourceProvider() {
+      return new MeasureResourceProvider();
+  }
 }
