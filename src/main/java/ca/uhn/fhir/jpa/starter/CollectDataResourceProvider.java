@@ -6,27 +6,28 @@ import java.util.stream.Collectors;
 
 import javax.servlet.http.HttpServletRequest;
 
-import com.google.common.base.Charsets;
-
-import org.apache.http.HttpHeaders;
-import org.apache.http.client.methods.CloseableHttpResponse;
-import org.apache.http.client.methods.HttpGet;
-import org.apache.http.impl.client.CloseableHttpClient;
-import org.apache.http.impl.client.HttpClientBuilder;
-import org.apache.http.util.EntityUtils;
+import org.hl7.fhir.instance.model.api.IBaseResource;
 import org.hl7.fhir.r4.model.Bundle;
 import org.hl7.fhir.r4.model.IdType;
 import org.hl7.fhir.r4.model.Measure;
 import org.hl7.fhir.r4.model.MeasureReport;
+import org.hl7.fhir.r4.model.Observation;
 import org.hl7.fhir.r4.model.Parameters;
 import org.hl7.fhir.r4.model.Reference;
+import org.hl7.fhir.r4.model.Resource;
 import org.springframework.beans.factory.annotation.Autowired;
-import ca.uhn.fhir.context.FhirContext;
+
 import ca.uhn.fhir.jpa.rp.r4.MeasureResourceProvider;
+import ca.uhn.fhir.jpa.rp.r4.ObservationResourceProvider;
+import ca.uhn.fhir.jpa.searchparam.SearchParameterMap;
+import ca.uhn.fhir.model.api.Include;
 import ca.uhn.fhir.rest.annotation.IdParam;
 import ca.uhn.fhir.rest.annotation.Operation;
 import ca.uhn.fhir.rest.annotation.OperationParam;
-import ca.uhn.fhir.rest.api.Constants;
+import ca.uhn.fhir.rest.api.server.IBundleProvider;
+import ca.uhn.fhir.rest.param.DateRangeParam;
+import ca.uhn.fhir.rest.param.TokenOrListParam;
+import ca.uhn.fhir.rest.param.TokenParam;
 import ca.uhn.fhir.rest.server.exceptions.InternalErrorException;
 import ca.uhn.fhir.rest.server.exceptions.ResourceNotFoundException;
 
@@ -36,7 +37,8 @@ public class CollectDataResourceProvider {
     @Autowired
     private MeasureResourceProvider measureResourceProvider;
 
-    private static final FhirContext CONTEXT = FhirContext.forR4();
+    @Autowired
+    private ObservationResourceProvider observationResourceProvider;
 
     @Operation(name = PlirConstants.OPERATION_COLLECT_DATA, idempotent = true, type = Measure.class)
     public Parameters collectDataOperation(HttpServletRequest theServletRequest, @IdParam IdType theId,
@@ -48,10 +50,9 @@ public class CollectDataResourceProvider {
         if (measure == null) {
             throw new ResourceNotFoundException("Could not find Measure/" + theId.getIdPart());
         }
-        String fullUrl = constructUrl(theServletRequest, measure, periodStart, periodEnd);
         Parameters parameters = new Parameters();
         try {
-            Bundle bundle = fetchBundle(fullUrl, theServletRequest);
+            Bundle bundle = fetchBundle(measure, periodStart, periodEnd);
             MeasureReport report = generateMeasureReport(bundle, measure);
 
             parameters.addParameter(new Parameters.ParametersParameterComponent()
@@ -86,44 +87,64 @@ public class CollectDataResourceProvider {
                 .forEach(r -> parameters.addParameter().setName(PlirConstants.PARAMETER_NAME_RESOURCE).setResource(r));
     }
 
-    private String constructUrl(HttpServletRequest theServletRequest, Measure measure, String periodStart,
-            String periodEnd) {
-        StringBuffer baseUrl = new StringBuffer(theServletRequest.getScheme());
-        baseUrl.append("://");
-        baseUrl.append(theServletRequest.getServerName());
-        baseUrl.append(":");
-        baseUrl.append(theServletRequest.getServerPort());
-        baseUrl.append(theServletRequest.getServletPath());
-        baseUrl.append("/");
-
+    private Bundle fetchBundle(Measure measure, String startDate, String endDate) {
         String expression = measure.getGroupFirstRep().getPopulationFirstRep().getCriteria().getExpression();
-        StringBuffer params = new StringBuffer("&date=ge");
-        params.append(periodStart);
-        params.append("&date=lt");
-        params.append(periodEnd);
-        String fullUrl = baseUrl + expression + params;
-        return fullUrl;
+
+        String code1 = "";
+        String code2 = "";
+        String includeValue = "";
+
+        if (expression.contains("?code=")) {
+            String[] parts = expression.split("\\?code=");
+            String allParams = parts[1];
+            if (allParams.contains("&_include=")) {
+                String[] paramValues = allParams.split("&_include=");
+                String conceptCodes = paramValues[0];
+                if (conceptCodes.contains(",")) {
+                    String[] conceptCodesArray = conceptCodes.split(",");
+                    code1 = conceptCodesArray[0];
+                    code2 = conceptCodesArray[1];
+                } else {
+                    code1 = conceptCodes;
+                }
+                includeValue = paramValues[1];
+            }
+
+        }
+
+        TokenOrListParam code = new TokenOrListParam();
+        TokenParam codingToken = new TokenParam();
+        codingToken.setValue(code1);
+        code.add(codingToken);
+
+        if (!code2.isEmpty()) {
+            TokenParam codingToken2 = new TokenParam();
+            codingToken2.setValue(code2);
+            code.addOr(codingToken2);
+        }
+
+        DateRangeParam dateRange = new DateRangeParam();
+        dateRange.setLowerBound(startDate);
+        dateRange.setUpperBound(endDate);
+
+        Include include = new Include(includeValue);
+
+        SearchParameterMap paramMap = new SearchParameterMap();
+        paramMap.add(Observation.SP_CODE, code);
+        paramMap.add(Observation.SP_DATE, dateRange);
+        paramMap.addInclude(include);
+
+        IBundleProvider bundle = observationResourceProvider.getDao().search(paramMap);
+        return getBundle(bundle);
     }
 
-    private Bundle fetchBundle(String theUrl, HttpServletRequest httpRequest) throws IOException {
-        Bundle bundle;
-        CloseableHttpClient ourHttpClient = HttpClientBuilder.create().build();
-        HttpGet get = new HttpGet(theUrl);
-
-        final String authorization = httpRequest.getHeader("Authorization");
-
-        String base64Credentials = "";
-        if (authorization != null && authorization.toLowerCase().startsWith("basic")) {
-            base64Credentials = authorization.substring("Basic".length()).trim();
+    private Bundle getBundle(IBundleProvider results) {
+        Bundle searchBundle = new Bundle();
+        searchBundle.setType(Bundle.BundleType.SEARCHSET);
+        for (IBaseResource resource : results.getResources(0, results.size())) {
+            Bundle.BundleEntryComponent component = searchBundle.addEntry();
+            component.setResource((Resource) resource);
         }
-        String authHeader = "Basic " + new String(base64Credentials);
-        get.addHeader(HttpHeaders.AUTHORIZATION, authHeader);
-        get.addHeader(Constants.HEADER_CACHE_CONTROL, Constants.CACHE_CONTROL_NO_CACHE);
-
-        try (CloseableHttpResponse resp = ourHttpClient.execute(get)) {
-            bundle = CONTEXT.newJsonParser().parseResource(Bundle.class,
-                    EntityUtils.toString(resp.getEntity(), Charsets.UTF_8));
-        }
-        return bundle;
+        return searchBundle;
     }
 }
