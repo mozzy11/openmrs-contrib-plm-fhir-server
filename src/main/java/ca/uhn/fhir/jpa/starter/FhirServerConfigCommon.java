@@ -212,11 +212,4 @@ public class FhirServerConfigCommon {
 
     return null;
   }
-  
-  //Added to fix test failures for R2 ,R3 and R5 context  .Spring shoul load this bean for all Fhir Contexts .
-  //even when its only implemented for R4
-  @Bean
-  public CollectDataResourceProvider collectDataResourceProvider() {
-      return new CollectDataResourceProvider();
-  }
 }

@@ -1,13 +1,22 @@
 package ca.uhn.fhir.jpa.starter;
 
-import java.io.IOException;
-import java.util.List;
-import java.util.stream.Collectors;
-
 import javax.servlet.http.HttpServletRequest;
 
-import com.google.common.base.Charsets;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.util.stream.Collectors;
 
+import ca.uhn.fhir.context.FhirContext;
+import ca.uhn.fhir.jpa.api.dao.IFhirResourceDao;
+import ca.uhn.fhir.jpa.starter.annotations.OnR4Condition;
+import ca.uhn.fhir.parser.DataFormatException;
+import ca.uhn.fhir.rest.annotation.IdParam;
+import ca.uhn.fhir.rest.annotation.Operation;
+import ca.uhn.fhir.rest.annotation.OperationParam;
+import ca.uhn.fhir.rest.param.DateParam;
+import ca.uhn.fhir.rest.param.ParamPrefixEnum;
+import ca.uhn.fhir.rest.server.exceptions.InternalErrorException;
+import ca.uhn.fhir.rest.server.exceptions.ResourceNotFoundException;
 import org.apache.http.HttpHeaders;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
@@ -20,110 +29,166 @@ import org.hl7.fhir.r4.model.Measure;
 import org.hl7.fhir.r4.model.MeasureReport;
 import org.hl7.fhir.r4.model.Parameters;
 import org.hl7.fhir.r4.model.Reference;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import ca.uhn.fhir.context.FhirContext;
-import ca.uhn.fhir.jpa.rp.r4.MeasureResourceProvider;
-import ca.uhn.fhir.rest.annotation.IdParam;
-import ca.uhn.fhir.rest.annotation.Operation;
-import ca.uhn.fhir.rest.annotation.OperationParam;
-import ca.uhn.fhir.rest.api.Constants;
-import ca.uhn.fhir.rest.server.exceptions.InternalErrorException;
-import ca.uhn.fhir.rest.server.exceptions.ResourceNotFoundException;
+import org.springframework.boot.web.servlet.context.ServletWebServerInitializedEvent;
+import org.springframework.context.annotation.Conditional;
+import org.springframework.context.annotation.Lazy;
+import org.springframework.context.event.EventListener;
+import org.springframework.stereotype.Component;
 
+@Component
+@Conditional(OnR4Condition.class)
+@Lazy
 public class CollectDataResourceProvider {
-    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(CollectDataResourceProvider.class);
 
-    @Autowired
-    private MeasureResourceProvider measureResourceProvider;
+	private static final Logger log = LoggerFactory.getLogger(CollectDataResourceProvider.class);
 
-    private static final FhirContext CONTEXT = FhirContext.forR4();
+	private FhirContext context;
 
-    @Operation(name = PlirConstants.OPERATION_COLLECT_DATA, idempotent = true, type = Measure.class)
-    public Parameters collectDataOperation(HttpServletRequest theServletRequest, @IdParam IdType theId,
-            @OperationParam(name = PlirConstants.PARAM_PERIOD_START, min = 1, max = 1) String periodStart,
-            @OperationParam(name = PlirConstants.PARAM_PERIOD_END, min = 1, max = 1) String periodEnd) {
+	private IFhirResourceDao<Measure> dao;
 
-        Measure measure = this.measureResourceProvider.getDao().read(theId);
+	private int port = 8080;
 
-        if (measure == null) {
-            throw new ResourceNotFoundException("Could not find Measure/" + theId.getIdPart());
-        }
-        String fullUrl = constructUrl(theServletRequest, measure, periodStart, periodEnd);
-        Parameters parameters = new Parameters();
-        try {
-            Bundle bundle = fetchBundle(fullUrl, theServletRequest);
-            MeasureReport report = generateMeasureReport(bundle, measure);
+	@Operation(name = PlirConstants.OPERATION_COLLECT_DATA, idempotent = true, type = Measure.class)
+	@SuppressWarnings("unused")
+	public Parameters collectDataOperation(HttpServletRequest req, @IdParam IdType theId,
+			@OperationParam(name = PlirConstants.PARAM_PERIOD_START, min = 1, max = 1) DateParam periodStart,
+			@OperationParam(name = PlirConstants.PARAM_PERIOD_END, min = 1, max = 1) DateParam periodEnd) {
 
-            parameters.addParameter(new Parameters.ParametersParameterComponent()
-                    .setName(PlirConstants.PARAMETER_NAME_MEASURE_REPORT).setResource(report));
-            generateObservationData(parameters, bundle);
-        } catch (IOException e) {
-            log.error("Caught exception while evaluating measure {}", theId.getIdPart(), e);
-            throw new InternalErrorException("Could not process measure " + theId, e);
-        }
-        return parameters;
-    }
+		Measure measure = getDao().read(theId);
 
-    private MeasureReport generateMeasureReport(Bundle bundle, Measure measure) throws IOException {
-        StringBuffer measureName = new StringBuffer(measure.getResourceType().name());
-        measureName.append("/");
-        measureName.append(measure.getIdentifierFirstRep().getValue());
+		if (measure == null) {
+			throw new ResourceNotFoundException("Could not find Measure/" + theId.getIdPart());
+		}
 
-        MeasureReport report = new MeasureReport();
-        report.setStatus(MeasureReport.MeasureReportStatus.COMPLETE);
-        report.setType(MeasureReport.MeasureReportType.DATACOLLECTION);
-        report.setMeasure(measureName.toString());
+		String fullUrl = constructUrl(measure, periodStart, periodEnd);
+		log.info("Sending request for {}", fullUrl);
 
-        List<Reference> references = bundle.getEntry().stream().filter(Bundle.BundleEntryComponent::hasResource)
-                .map(Bundle.BundleEntryComponent::getResource).map(Reference::new).collect(Collectors.toList());
-        report.setEvaluatedResource(references);
-        return report;
-    }
+		Parameters parameters = new Parameters();
+		try {
+			Bundle bundle = fetchBundle(fullUrl, req, theId);
+			MeasureReport report = generateMeasureReport(req, bundle, measure);
 
-    private void generateObservationData(Parameters parameters, Bundle bundle) throws IOException {
-        bundle.getEntry().stream().filter(Bundle.BundleEntryComponent::hasResource)
-                .map(Bundle.BundleEntryComponent::getResource)
-                .forEach(r -> parameters.addParameter().setName(PlirConstants.PARAMETER_NAME_RESOURCE).setResource(r));
-    }
+			parameters.addParameter(new Parameters.ParametersParameterComponent()
+					.setName(PlirConstants.PARAMETER_NAME_MEASURE_REPORT).setResource(report));
+			generateObservationData(parameters, bundle);
+		}
+		catch (IOException e) {
+			log.error("Caught exception while evaluating measure {}", theId.getIdPart(), e);
+			throw new InternalErrorException("Could not collect data for measure " + theId, e);
+		}
+		return parameters;
+	}
 
-    private String constructUrl(HttpServletRequest theServletRequest, Measure measure, String periodStart,
-            String periodEnd) {
-        StringBuffer baseUrl = new StringBuffer(theServletRequest.getScheme());
-        baseUrl.append("://");
-        baseUrl.append(theServletRequest.getServerName());
-        baseUrl.append(":");
-        baseUrl.append(theServletRequest.getServerPort());
-        baseUrl.append(theServletRequest.getServletPath());
-        baseUrl.append("/");
+	public FhirContext getContext() {
+		return context;
+	}
 
-        String expression = measure.getGroupFirstRep().getPopulationFirstRep().getCriteria().getExpression();
-        StringBuffer params = new StringBuffer("&date=ge");
-        params.append(periodStart);
-        params.append("&date=lt");
-        params.append(periodEnd);
-        String fullUrl = baseUrl + expression + params;
-        return fullUrl;
-    }
+	@Autowired
+	public void setContext(FhirContext context) {
+		this.context = context;
+	}
 
-    private Bundle fetchBundle(String theUrl, HttpServletRequest httpRequest) throws IOException {
-        Bundle bundle;
-        CloseableHttpClient ourHttpClient = HttpClientBuilder.create().build();
-        HttpGet get = new HttpGet(theUrl);
+	public IFhirResourceDao<Measure> getDao() {
+		return dao;
+	}
 
-        final String authorization = httpRequest.getHeader("Authorization");
+	@Autowired
+	public void setDao(IFhirResourceDao<Measure> dao) {
+		this.dao = dao;
+	}
 
-        String base64Credentials = "";
-        if (authorization != null && authorization.toLowerCase().startsWith("basic")) {
-            base64Credentials = authorization.substring("Basic".length()).trim();
-        }
-        String authHeader = "Basic " + new String(base64Credentials);
-        get.addHeader(HttpHeaders.AUTHORIZATION, authHeader);
-        get.addHeader(Constants.HEADER_CACHE_CONTROL, Constants.CACHE_CONTROL_NO_CACHE);
+	public int getPort() {
+		return port;
+	}
 
-        try (CloseableHttpResponse resp = ourHttpClient.execute(get)) {
-            bundle = CONTEXT.newJsonParser().parseResource(Bundle.class,
-                    EntityUtils.toString(resp.getEntity(), Charsets.UTF_8));
-        }
-        return bundle;
-    }
+	public void setPort(int port) {
+		this.port = port;
+	}
+
+	@EventListener
+	public void onApplicationEvent(ServletWebServerInitializedEvent event) {
+		setPort(event.getWebServer().getPort());
+	}
+
+	private MeasureReport generateMeasureReport(HttpServletRequest req, Bundle bundle, Measure measure) throws IOException {
+		MeasureReport report = new MeasureReport();
+		report.setStatus(MeasureReport.MeasureReportStatus.COMPLETE);
+		report.setType(MeasureReport.MeasureReportType.DATACOLLECTION);
+
+		report.setMeasure(measure.getResourceType().name() + "/"
+				+ measure.getIdentifierFirstRep().getValue());
+
+		report.setEvaluatedResource(bundle.getEntry().stream().filter(Bundle.BundleEntryComponent::hasResource)
+				.map(Bundle.BundleEntryComponent::getResource).peek(r -> {
+					IdType idElement = r.getIdElement();
+					String scheme = req.getScheme();
+					StringBuilder sb = new StringBuilder(scheme).append("://").append(req.getServerName());
+					if (("https".equalsIgnoreCase(scheme) && req.getServerPort() != 443) ||
+							("http".equalsIgnoreCase(scheme) && req.getServerPort() != 80)) {
+						sb.append(":").append(req.getServerPort());
+					}
+
+					String baseUrl = sb.append(req.getServletPath()).toString();
+					idElement.setParts(baseUrl, idElement.getResourceType(), idElement.getIdPart(),
+							idElement.getVersionIdPart());
+
+					r.setIdElement(idElement);
+				}).map(Reference::new).collect(Collectors.toList()));
+		return report;
+	}
+
+	private void generateObservationData(Parameters parameters, Bundle bundle) throws IOException {
+		bundle.getEntry().stream().filter(Bundle.BundleEntryComponent::hasResource)
+				.map(Bundle.BundleEntryComponent::getResource)
+				.forEach(r -> parameters.addParameter().setName(PlirConstants.PARAMETER_NAME_RESOURCE).setResource(r));
+	}
+
+	private String constructUrl(Measure measure, DateParam periodStart,
+			DateParam periodEnd) {
+		ParamPrefixEnum startPrefix = ParamPrefixEnum.GREATERTHAN_OR_EQUALS;
+		if (periodStart.getPrefix() != null) {
+			startPrefix = periodStart.getPrefix();
+		}
+
+		ParamPrefixEnum endPrefix = ParamPrefixEnum.LESSTHAN_OR_EQUALS;
+		if (periodEnd.getPrefix() != null) {
+			endPrefix = periodEnd.getPrefix();
+		}
+
+		if (periodEnd.getPrefix() == null) {
+			periodEnd.setPrefix(ParamPrefixEnum.LESSTHAN_OR_EQUALS);
+		}
+
+		return "http://127.0.0.1:" + port + "/fhir/" + measure.getGroupFirstRep().getPopulationFirstRep().getCriteria()
+				.getExpression()
+				+ "&date=" + startPrefix.getValue() + periodStart.getValueAsString()
+				+ "&date=" + endPrefix.getValue() + periodEnd.getValueAsString();
+	}
+
+	private Bundle fetchBundle(String theUrl, HttpServletRequest httpRequest, IdType theId) throws IOException {
+		try (CloseableHttpClient ourHttpClient = HttpClientBuilder.create().build()) {
+			HttpGet get = new HttpGet(theUrl);
+
+			final String authorization = httpRequest.getHeader(HttpHeaders.AUTHORIZATION);
+			if (authorization != null) {
+				get.addHeader(HttpHeaders.AUTHORIZATION, authorization);
+			}
+			get.addHeader(HttpHeaders.ACCEPT, "application/fhir+json");
+
+			try (CloseableHttpResponse resp = ourHttpClient.execute(get)) {
+				String respEntity = EntityUtils.toString(resp.getEntity(), StandardCharsets.UTF_8);
+				try {
+					return getContext().newJsonParser().parseResource(Bundle.class, respEntity);
+				}
+				catch (DataFormatException e) {
+					log.error("An exception occurred while trying to parse the bundle returned from the server {}",
+							respEntity, e);
+					throw new InternalErrorException("Could not collect data for measure " + theId, e);
+				}
+			}
+		}
+	}
 }
