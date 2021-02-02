@@ -121,20 +121,19 @@ public class CollectDataResourceProvider {
 		report.setMeasure(measure.getResourceType().name() + "/"
 				+ measure.getIdentifierFirstRep().getValue());
 
+		String scheme = req.getScheme();
+		StringBuilder sb = new StringBuilder(scheme).append("://").append(req.getServerName());
+		if (("https".equalsIgnoreCase(scheme) && req.getServerPort() != 443) ||
+				("http".equalsIgnoreCase(scheme) && req.getServerPort() != 80)) {
+			sb.append(":").append(req.getServerPort());
+		}
+		final String baseUrl = sb.append(req.getServletPath()).toString();
+
 		report.setEvaluatedResource(bundle.getEntry().stream().filter(Bundle.BundleEntryComponent::hasResource)
 				.map(Bundle.BundleEntryComponent::getResource).peek(r -> {
 					IdType idElement = r.getIdElement();
-					String scheme = req.getScheme();
-					StringBuilder sb = new StringBuilder(scheme).append("://").append(req.getServerName());
-					if (("https".equalsIgnoreCase(scheme) && req.getServerPort() != 443) ||
-							("http".equalsIgnoreCase(scheme) && req.getServerPort() != 80)) {
-						sb.append(":").append(req.getServerPort());
-					}
-
-					String baseUrl = sb.append(req.getServletPath()).toString();
 					idElement.setParts(baseUrl, idElement.getResourceType(), idElement.getIdPart(),
 							idElement.getVersionIdPart());
-
 					r.setIdElement(idElement);
 				}).map(Reference::new).collect(Collectors.toList()));
 		return report;
