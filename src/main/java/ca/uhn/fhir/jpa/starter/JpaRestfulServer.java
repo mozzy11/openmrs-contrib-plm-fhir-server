@@ -12,9 +12,6 @@ public class JpaRestfulServer extends BaseJpaRestfulServer {
   @Autowired
   AppProperties appProperties;
 
-  @Autowired
-  CollectDataResourceProvider collectDataResourceProvider;
-
   private static final long serialVersionUID = 1L;
 
   public JpaRestfulServer() {
@@ -26,11 +23,6 @@ public class JpaRestfulServer extends BaseJpaRestfulServer {
     super.initialize();
 
     this.registerInterceptor(new AuthenticationInterceptor());
-
- //This resource Provider Should only be registerd for FHIR Context R4
-    if (appProperties.getFhir_version() == FhirVersionEnum.R4) {
-      this.registerProvider(collectDataResourceProvider);
-    }
   }
 
 }

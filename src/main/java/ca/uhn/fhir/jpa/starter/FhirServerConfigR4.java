@@ -5,10 +5,16 @@ import ca.uhn.fhir.jpa.config.BaseJavaConfigR4;
 import ca.uhn.fhir.jpa.search.DatabaseBackedPagingProvider;
 import ca.uhn.fhir.jpa.search.lastn.ElasticsearchSvcImpl;
 import ca.uhn.fhir.jpa.starter.annotations.OnR4Condition;
+import ca.uhn.fhir.rest.server.provider.ResourceProviderFactory;
+import org.hl7.fhir.r4.model.Measure;
+import org.springframework.beans.factory.ObjectFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.autoconfigure.web.ServerProperties;
+import org.springframework.boot.web.servlet.context.ServletWebServerApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Conditional;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.context.annotation.Primary;
 import org.springframework.core.env.ConfigurableEnvironment;
 import org.springframework.orm.jpa.JpaTransactionManager;
@@ -20,6 +26,9 @@ import javax.sql.DataSource;
 @Configuration
 @Conditional(OnR4Condition.class)
 public class FhirServerConfigR4 extends BaseJavaConfigR4 {
+
+  @Autowired
+  private ObjectFactory<CollectDataResourceProvider> collectDataRpOf;
 
   @Autowired
   private DataSource myDataSource;
@@ -79,5 +88,13 @@ public class FhirServerConfigR4 extends BaseJavaConfigR4 {
     } else {
       return null;
     }
+  }
+
+  @Override
+  @Bean(name="myResourceProvidersR4")
+  public ResourceProviderFactory resourceProvidersR4() {
+    ResourceProviderFactory resourceProviderFactory = super.resourceProvidersR4();
+    resourceProviderFactory.addSupplier(() -> isSupported("Measure") ? collectDataRpOf.getObject() : null);
+    return resourceProviderFactory;
   }
 }
