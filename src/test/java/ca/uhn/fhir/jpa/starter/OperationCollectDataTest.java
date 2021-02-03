@@ -2,6 +2,7 @@ package ca.uhn.fhir.jpa.starter;
 
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -184,18 +185,22 @@ public class OperationCollectDataTest {
     assertEquals(1, result.getParameter().size());
   }
 
-  @Test
-  public void shouldFailIfMeasureResourceIdIsWrong() throws IOException,URISyntaxException {
-    String paramName1 = "measureReport";
-    String paramName2 = "resource";
-    // Post the Measure Resource
-    Measure measure = readMeasureFromFile();
-    Exception exception  = Assertions.assertThrows(IllegalArgumentException.class,
-    () -> ourClient.update().resource(measure).withId(WRONG_MEASURE_RESOURCE_ID).encodedJson().execute(),
-    "Illegal character in path at index 44:");
-    assertNotNull(exception);
-    assertNotNull(exception.getMessage());
-    assertTrue(exception.getMessage().contains("Illegal character in path at index 44:"));
+ @Test
+ public void shouldFailIfMeasureResourceIdIsWrong() throws IOException{	
+  String paramName1 = "measureReport";
+  String paramName2 = "resource";
+  // Post the Measure Resource
+  Measure measure = readMeasureFromFile();
+  try{
+  ourClient.update().resource(measure).withId(WRONG_MEASURE_RESOURCE_ID).encodedJson().execute();
+  }
+   catch (Exception exception) {
+	        assertNotNull(exception);
+			assertNotNull(exception.getStackTrace());
+			assertTrue(exception.getMessage().contains("Illegal character in path at index 44:"));
+			assertEquals(exception.getClass(), IllegalArgumentException.class);
+	
+         }
   }
 
   @Test
