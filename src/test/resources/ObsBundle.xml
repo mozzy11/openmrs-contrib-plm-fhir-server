@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Bundle xmlns="http://hl7.org/fhir">
  <type value="transaction"/>
-
  <entry>
  <resource> 
  <Observation> 
@@ -41,8 +40,6 @@
         <url value="Observation"/>
 </request> 
  </entry>
-
-
  <entry>
  <resource> 
  <Observation> 
@@ -82,8 +79,6 @@
         <url value="Observation"/>
 </request> 
  </entry>
-
-
  <entry>
 <resource> 
  <Observation> 
@@ -126,7 +121,6 @@
         <url value="Observation"/>
 </request> 
  </entry>
-
  <entry>
 <resource> 
  <Observation> 
@@ -166,7 +160,6 @@
         <url value="Observation"/>
 </request> 
  </entry>
-
  <entry>
 <resource> 
  <Observation> 
@@ -206,7 +199,6 @@
         <url value="Observation"/>
 </request> 
  </entry>
-
  <entry>
 <resource> 
  <Observation> 

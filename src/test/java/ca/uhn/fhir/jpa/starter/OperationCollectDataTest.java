@@ -21,7 +21,6 @@ import ca.uhn.fhir.rest.client.api.ServerValidationModeEnum;
 import ca.uhn.fhir.rest.client.interceptor.BasicAuthInterceptor;
 import ca.uhn.fhir.rest.client.interceptor.LoggingInterceptor;
 import ca.uhn.fhir.rest.server.exceptions.InvalidRequestException;
-
 import com.google.common.base.Charsets;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.io.FileUtils;
@@ -83,6 +82,15 @@ public class OperationCollectDataTest {
 
 	private Parameters parameters;
 
+	private String paramName1 = "measureReport";
+
+	private String paramName2 = "resource";
+	
+	private HttpGet get;
+
+	private HttpPost post;
+
+
 	private FhirContext ourCtx;
 
 	@LocalServerPort
@@ -90,9 +98,6 @@ public class OperationCollectDataTest {
 	
 	@Test
 	public void testCollectDataOperationOnJsonData() throws IOException {
-		String paramName1 = "measureReport";
-		String paramName2 = "resource";
-
 		// Post the Measure Resource
 		Measure measure = readMeasureFromFile();
 		ourClient.update().resource(measure).withId(MEASURE_RESOURCE_ID).encodedJson().execute();
@@ -101,7 +106,7 @@ public class OperationCollectDataTest {
 		postResource(ourServerBase, OBS_FILE_PATH);
 
 		// fetch parameter result from the operation
-		Parameters result = fetchParameter(ourServerBase + "/Measure/" +  MEASURE_RESOURCE_ID
+		Parameters result = fetchParameter(ourServerBase + "/Measure/" + MEASURE_RESOURCE_ID
 				+ "/$collect-data?periodStart=2021-01-01&periodEnd=2021-01-31");
 
 		assertTrue(result.hasParameter(paramName1));
@@ -131,8 +136,6 @@ public class OperationCollectDataTest {
 
 	@Test
 	public void shouldFailIfResourceTypeIsNotSPecified() throws IOException {
-		String paramName1 = "measureReport";
-		String paramName2 = "resource";
 
 		// Post the Measure Resource
 		Measure measure = readMeasureFromFile();
@@ -154,8 +157,7 @@ public class OperationCollectDataTest {
 	}
 	@Test
   public void testCollectDataOperationOnXmlData() throws IOException {
-    String paramName1 = "measureReport";
-    String paramName2 = "resource";
+    
     // Post the Measure Resource
     Measure measure = readMeasureFromXmlFile();
     ourClient.update().resource(measure).withId(MEASURE_RESOURCE_ID).encodedXml().execute();
@@ -191,8 +193,7 @@ public class OperationCollectDataTest {
   @Test
   public void shouldReturnNoResultsIfThereNoObsRecordedInTheStatedDatePeriods()
       throws IOException {
-    String paramName1 = "measureReport";
-    String paramName2 = "resource";
+   
     // Post the Measure Resource
     Measure measure = readMeasureFromFile();
     ourClient.update().resource(measure).withId(MEASURE_RESOURCE_ID).encodedJson().execute();
@@ -212,8 +213,7 @@ public class OperationCollectDataTest {
 
  @Test
  public void shouldFailIfMeasureResourceIdIsWrong() throws IOException{	
-  String paramName1 = "measureReport";
-  String paramName2 = "resource";
+  
   // Post the Measure Resource
   Measure measure = readMeasureFromFile();
   try{
@@ -230,8 +230,6 @@ public class OperationCollectDataTest {
   @Test
   public void shouldReturnErrorWhenUnderScoreIsUsedInMeasureId()
       throws  IOException {
-    String paramName1 = "measureReport";
-    String paramName2 = "resource";
     // Post the Measure Resource
     Measure measure = readMeasureFromFile();
     Exception exception  = Assertions.assertThrows(InvalidRequestException.class,
@@ -256,8 +254,7 @@ public class OperationCollectDataTest {
 	}
 
 	private Parameters fetchParameter(String theUrl) throws IOException {
-		//Parameters parameters;
-		HttpGet get = new HttpGet(theUrl);
+		 get = new HttpGet(theUrl);
 
 		String auth = USER_NAME + ":" + USER_PASSWORD;
 		byte[] encodedAuth = Base64.encodeBase64(auth.getBytes(StandardCharsets.ISO_8859_1));
@@ -274,8 +271,7 @@ public class OperationCollectDataTest {
 	}
 
 	private Parameters fetchXmlParameter(String theUrl) throws IOException {
-		//Parameters parameters;
-		HttpGet get = new HttpGet(theUrl);
+		get = new HttpGet(theUrl);
 	
 		String auth = USER_NAME + ":" + USER_PASSWORD;
 		byte[] encodedAuth = Base64.encodeBase64(auth.getBytes(StandardCharsets.ISO_8859_1));
@@ -294,7 +290,7 @@ public class OperationCollectDataTest {
 
 	private void postResource(String theUrl, String filePath)
 			throws IOException {
-		HttpPost post = new HttpPost(theUrl);
+		post = new HttpPost(theUrl);
 		String json = readFile(filePath);
 
 		StringEntity entity = new StringEntity(json, StandardCharsets.UTF_8);
@@ -320,7 +316,7 @@ public class OperationCollectDataTest {
 
 	private void postXmlResource(String theUrl, String filePath)
 			throws IOException {
-		HttpPost post = new HttpPost(theUrl);
+		post = new HttpPost(theUrl);
 		String xml = readFile(filePath);
 
 		StringEntity entity = new StringEntity(xml, StandardCharsets.UTF_8);
