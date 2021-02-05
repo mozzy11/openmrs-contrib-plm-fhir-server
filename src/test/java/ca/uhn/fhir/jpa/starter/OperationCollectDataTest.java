@@ -2,18 +2,16 @@ package ca.uhn.fhir.jpa.starter;
 
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.File;
 import java.io.IOException;
 import java.lang.IllegalArgumentException;
-import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
 
 import ca.uhn.fhir.context.FhirContext;
+import ca.uhn.fhir.parser.DataFormatException;
 import ca.uhn.fhir.parser.IParser;
 import ca.uhn.fhir.parser.StrictErrorHandler;
 import ca.uhn.fhir.rest.api.Constants;
@@ -71,7 +69,7 @@ public class OperationCollectDataTest {
 
 	private static String UNDER_SCORE_MEASURE_RESOURCE_ID = "TX_PVLS";
 
-    private static String WRONG_MEASURE_RESOURCE_ID = "TX-JDFGS";
+    private static String WRONG_MEASURE_RESOURCE_ID = "TX-JDFG";
 
 	private static final String USER_NAME = "hapi";
 
@@ -83,13 +81,15 @@ public class OperationCollectDataTest {
 
 	private IGenericClient ourClient;
 
+	private Parameters parameters;
+
 	private FhirContext ourCtx;
 
 	@LocalServerPort
 	private int port;
-
+	
 	@Test
-	public void testCollectDataOperation() throws IOException {
+	public void testCollectDataOperationOnJsonData() throws IOException {
 		String paramName1 = "measureReport";
 		String paramName2 = "resource";
 
@@ -101,7 +101,7 @@ public class OperationCollectDataTest {
 		postResource(ourServerBase, OBS_FILE_PATH);
 
 		// fetch parameter result from the operation
-		Parameters result = fetchParameter(ourServerBase + "/Measure/" + MEASURE_RESOURCE_ID
+		Parameters result = fetchParameter(ourServerBase + "/Measure/" +  MEASURE_RESOURCE_ID
 				+ "/$collect-data?periodStart=2021-01-01&periodEnd=2021-01-31");
 
 		assertTrue(result.hasParameter(paramName1));
@@ -130,7 +130,30 @@ public class OperationCollectDataTest {
 	}
 
 	@Test
-  public void testCollectDataOperationXml() throws IOException {
+	public void shouldFailIfResourceTypeIsNotSPecified() throws IOException {
+		String paramName1 = "measureReport";
+		String paramName2 = "resource";
+
+		// Post the Measure Resource
+		Measure measure = readMeasureFromFile();
+		ourClient.update().resource(measure).withId(MEASURE_RESOURCE_ID).encodedJson().execute();
+
+		// post the obs bundle
+		postResource(ourServerBase, OBS_FILE_PATH);
+        try{
+		// fetch parameter result from the operation
+		Parameters result = fetchParameter(ourServerBase + MEASURE_RESOURCE_ID 
+				+ "/$collect-data?periodStart=2021-01-01&periodEnd=2021-01-31");
+		}
+		catch (Exception exception) {
+	        assertNotNull(exception);
+			assertNotNull(exception.getStackTrace());
+			assertTrue(exception.getMessage().contains("Failed to parse JSON encoded FHIR content: Did not find any content to parse"));
+			assertEquals(exception.getClass(), DataFormatException.class);
+         }	
+	}
+	@Test
+  public void testCollectDataOperationOnXmlData() throws IOException {
     String paramName1 = "measureReport";
     String paramName2 = "resource";
     // Post the Measure Resource
@@ -138,9 +161,9 @@ public class OperationCollectDataTest {
     ourClient.update().resource(measure).withId(MEASURE_RESOURCE_ID).encodedXml().execute();
     // post the obs Bundle
     postXmlResource(ourServerBase, OBS_FILE_XML_PATH);
-    // fetch parameter reuslt from the Opration
-    Parameters result = fetchXmlParameter(ourServerBase + "/Measure/" + MEASURE_RESOURCE_ID
-        + "/$collect-data?periodStart=2021-01-01&periodEnd=2021-01-31");
+    // fetch parameter reuslt from the Operation
+	Parameters result = fetchXmlParameter(ourServerBase + "/Measure/" + MEASURE_RESOURCE_ID
+		+ "/$collect-data?periodStart=2021-01-01&periodEnd=2021-01-31");
 
     assertTrue(result.hasParameter(paramName1));
     assertTrue(result.hasParameter(paramName2));
@@ -166,7 +189,7 @@ public class OperationCollectDataTest {
   }  
 
   @Test
-  public void shouldReturnNoResultsIfThePeriodOfMeasurementSpecifiedIsOoutOfRange()
+  public void shouldReturnNoResultsIfThereNoObsRecordedInTheStatedDatePeriods()
       throws IOException {
     String paramName1 = "measureReport";
     String paramName2 = "resource";
@@ -179,9 +202,11 @@ public class OperationCollectDataTest {
     Parameters result = fetchParameter(ourServerBase + "/Measure/" + MEASURE_RESOURCE_ID
         + "/$collect-data?periodStart=2020-01-01&periodEnd=2020-01-31");
 
-    assertTrue(result.hasParameter(paramName1));
+	assertTrue(result.hasParameter(paramName1));
+	
+	//no obs resources 
     assertFalse(result.hasParameter(paramName2));
-    // returns only the measure report reosurce
+    // returns only the empty measure report 
     assertEquals(1, result.getParameter().size());
   }
 
@@ -199,7 +224,6 @@ public class OperationCollectDataTest {
 			assertNotNull(exception.getStackTrace());
 			assertTrue(exception.getMessage().contains("Illegal character in path at index 44:"));
 			assertEquals(exception.getClass(), IllegalArgumentException.class);
-	
          }
   }
 
@@ -213,11 +237,9 @@ public class OperationCollectDataTest {
     Exception exception  = Assertions.assertThrows(InvalidRequestException.class,
     () ->ourClient.update().resource(measure).withId(UNDER_SCORE_MEASURE_RESOURCE_ID).encodedJson().execute(),
     "HTTP 400 Bad Request: Can not process entity with ID[TX_PVLS], this is not a valid FHIR ID");
-
     assertNotNull(exception);
     assertNotNull(exception.getMessage());
     assertTrue(exception.getMessage().contains("HTTP 400 Bad Request: Can not process entity with ID[TX_PVLS], this is not a valid FHIR ID"));
-
   }
 
 
@@ -234,7 +256,7 @@ public class OperationCollectDataTest {
 	}
 
 	private Parameters fetchParameter(String theUrl) throws IOException {
-		Parameters parameters;
+		//Parameters parameters;
 		HttpGet get = new HttpGet(theUrl);
 
 		String auth = USER_NAME + ":" + USER_PASSWORD;
@@ -252,18 +274,19 @@ public class OperationCollectDataTest {
 	}
 
 	private Parameters fetchXmlParameter(String theUrl) throws IOException {
-		Parameters parameters;
+		//Parameters parameters;
 		HttpGet get = new HttpGet(theUrl);
 	
 		String auth = USER_NAME + ":" + USER_PASSWORD;
 		byte[] encodedAuth = Base64.encodeBase64(auth.getBytes(StandardCharsets.ISO_8859_1));
 		String authHeader = "Basic " + new String(encodedAuth);
 		get.addHeader(HttpHeaders.AUTHORIZATION, authHeader);
+		get.addHeader(HttpHeaders.ACCEPT, "application/fhir+xml");
 	
 		get.addHeader(Constants.HEADER_CACHE_CONTROL, Constants.CACHE_CONTROL_NO_CACHE);
 	
 		try (CloseableHttpResponse resp = ourHttpClient.execute(get)) {
-		  parameters = ourCtx.newXmlParser().parseResource(Parameters.class,
+		 parameters = ourCtx.newXmlParser().parseResource(Parameters.class,
 			  EntityUtils.toString(resp.getEntity(), Charsets.UTF_8));
 		}
 		return parameters;
@@ -295,25 +318,32 @@ public class OperationCollectDataTest {
 		}
 	}
 
-	private CloseableHttpResponse postXmlResource(String theUrl, String filePath)
-      throws IOException{
-    HttpPost post = new HttpPost(theUrl);
-    String xml = readFile(filePath);
+	private void postXmlResource(String theUrl, String filePath)
+			throws IOException {
+		HttpPost post = new HttpPost(theUrl);
+		String xml = readFile(filePath);
 
-    StringEntity entity = new StringEntity(xml);
-    post.setEntity(entity);
-    post.setHeader("Accept", "application/xml");
-    post.setHeader("Content-type", "application/xml");
+		StringEntity entity = new StringEntity(xml, StandardCharsets.UTF_8);
+		post.setEntity(entity);
+		post.setHeader(HttpHeaders.ACCEPT, "application/fhir+xml");
+		post.setHeader(HttpHeaders.CONTENT_TYPE, "application/fhir+xml");
 
-    String auth = USER_NAME + ":" + USER_PASSWORD;
-    byte[] encodedAuth = Base64.encodeBase64(auth.getBytes(StandardCharsets.ISO_8859_1));
-    String authHeader = "Basic " + new String(encodedAuth);
-    post.addHeader(HttpHeaders.AUTHORIZATION, authHeader);
+		String auth = USER_NAME + ":" + USER_PASSWORD;
+		byte[] encodedAuth = Base64.encodeBase64(auth.getBytes(StandardCharsets.ISO_8859_1));
+		String authHeader = "Basic " + new String(encodedAuth);
+		post.addHeader(HttpHeaders.AUTHORIZATION, authHeader);
 
-    post.addHeader(Constants.HEADER_CACHE_CONTROL, Constants.CACHE_CONTROL_NO_CACHE);
-    CloseableHttpResponse resp = ourHttpClient.execute(post);
-    return resp;
-  }
+		post.addHeader(Constants.HEADER_CACHE_CONTROL, Constants.CACHE_CONTROL_NO_CACHE);
+
+		try (CloseableHttpResponse res = ourHttpClient.execute(post)) {
+
+			if (res.getStatusLine().getStatusCode() != 200) {
+				throw new IllegalStateException(
+						"Attempting to POST resource bundle failed with status code " + res.getStatusLine().getStatusCode()
+								+ " " + EntityUtils.toString(res.getEntity(), StandardCharsets.UTF_8));
+			}
+		}
+	}
 
 	private String readFile(String path) throws IOException {
 		return FileUtils.readFileToString(new File(path), StandardCharsets.UTF_8);
@@ -337,7 +367,6 @@ public class OperationCollectDataTest {
 		String xml = readFile(MEASURE_XML_FILE_PATH);
 	
 		IParser parser = ourCtx.newXmlParser();
-		Measure measure = parser.parseResource(Measure.class, xml);
-		return measure;
+		return parser.parseResource(Measure.class, xml);
 	  }
 }

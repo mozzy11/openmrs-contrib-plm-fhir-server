@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Bundle xmlns="http://hl7.org/fhir">
- <type value="collection"/>
+ <type value="transaction"/>
 
  <entry>
  <resource> 
@@ -40,9 +40,10 @@
      	<method value="POST"/>
         <url value="Observation"/>
 </request> 
+ </entry>
 
 
-
+ <entry>
  <resource> 
  <Observation> 
  <id value="1aa6d708-653c-485b-a413-ef9b7541213f"/> 
@@ -80,10 +81,10 @@
      	<method value="POST"/>
         <url value="Observation"/>
 </request> 
+ </entry>
 
 
-
-
+ <entry>
 <resource> 
  <Observation> 
  <id value="45f653d7-da5c-4cb8-8ae7-b4fd875862f8"/> 
@@ -124,9 +125,9 @@
      	<method value="POST"/>
         <url value="Observation"/>
 </request> 
+ </entry>
 
-
-
+ <entry>
 <resource> 
  <Observation> 
  <id value="98a546bc-77e6-46b1-bb2b-8179cd66e8c3"/> 
@@ -164,8 +165,9 @@
      	<method value="POST"/>
         <url value="Observation"/>
 </request> 
+ </entry>
 
-
+ <entry>
 <resource> 
  <Observation> 
  <id value="b173843e-12d7-4c7a-b02d-7a1637c008cb"/> 
@@ -203,9 +205,9 @@
      	<method value="POST"/>
         <url value="Observation"/>
 </request> 
+ </entry>
 
-
-
+ <entry>
 <resource> 
  <Observation> 
  <id value="e9ba1769-93cb-40fe-a567-51473c809538"/> 
