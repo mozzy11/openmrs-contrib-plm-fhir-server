@@ -1,7 +1,7 @@
 package ca.uhn.fhir.jpa.starter;
 
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -11,7 +11,6 @@ import java.lang.IllegalArgumentException;
 import java.nio.charset.StandardCharsets;
 
 import ca.uhn.fhir.context.FhirContext;
-import ca.uhn.fhir.parser.DataFormatException;
 import ca.uhn.fhir.parser.IParser;
 import ca.uhn.fhir.parser.StrictErrorHandler;
 import ca.uhn.fhir.rest.api.Constants;
@@ -24,7 +23,10 @@ import ca.uhn.fhir.rest.server.exceptions.InvalidRequestException;
 import com.google.common.base.Charsets;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.io.FileUtils;
+import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.io.IOUtils;
+import org.apache.http.Header;
+import org.apache.http.HttpEntity;
 import org.apache.http.HttpHeaders;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
@@ -44,6 +46,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.web.server.LocalServerPort;
+import org.springframework.http.MediaType;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 
 @ExtendWith(SpringExtension.class)
@@ -64,11 +67,15 @@ public class OperationCollectDataTest {
 
 	private static String MEASURE_XML_FILE_PATH = "src/test/resources/FhirMeasure.xml";
 
+	public static final MediaType FHIR_JSON_MEDIA_TYPE = MediaType.valueOf("application/fhir+json");
+
+	public static final MediaType FHIR_XML_MEDIA_TYPE = MediaType.valueOf("application/fhir+xml");
+
 	private static final String MEASURE_RESOURCE_ID = "TX-PVLS";
 
 	private static String UNDER_SCORE_MEASURE_RESOURCE_ID = "TX_PVLS";
 
-    private static String WRONG_MEASURE_RESOURCE_ID = "TX-JDFG";
+	private static String WRONG_MEASURE_RESOURCE_ID = "TX-JDFG";
 
 	private static final String USER_NAME = "hapi";
 
@@ -80,26 +87,19 @@ public class OperationCollectDataTest {
 
 	private IGenericClient ourClient;
 
-	private Parameters parameters;
+	private static String PARAM_NAME1 = "measureReport";
 
-	private String paramName1 = "measureReport";
-
-	private String paramName2 = "resource";
-	
-	private HttpGet get;
-
-	private HttpPost post;
-
+	private static String PARAM_NAME2 = "resource";
 
 	private FhirContext ourCtx;
 
 	@LocalServerPort
 	private int port;
-	
+
 	@Test
 	public void testCollectDataOperationOnJsonData() throws IOException {
 		// Post the Measure Resource
-		Measure measure = readMeasureFromFile();
+		Measure measure = readMeasureFromJsonFile();
 		ourClient.update().resource(measure).withId(MEASURE_RESOURCE_ID).encodedJson().execute();
 
 		// post the obs bundle
@@ -109,8 +109,8 @@ public class OperationCollectDataTest {
 		Parameters result = fetchParameter(ourServerBase + "/Measure/" + MEASURE_RESOURCE_ID
 				+ "/$collect-data?periodStart=2021-01-01&periodEnd=2021-01-31");
 
-		assertTrue(result.hasParameter(paramName1));
-		assertTrue(result.hasParameter(paramName2));
+		assertTrue(result.hasParameter(PARAM_NAME1));
+		assertTrue(result.hasParameter(PARAM_NAME2));
 		assertEquals(5, result.getParameter().size());
 
 		assertTrue(result.getParameter().get(0).getResource() instanceof MeasureReport);
@@ -132,114 +132,140 @@ public class OperationCollectDataTest {
 
 		Observation observation2 = (Observation) result.getParameter().get(2).getResource();
 		assertEquals(observation2.getCode().getCodingFirstRep().getCode(), "856AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
-	}
+	}	
 
 	@Test
-	public void shouldFailIfResourceTypeIsNotSPecified() throws IOException {
+	public void testCollectDataOperationOnXmlData() throws IOException {
 
 		// Post the Measure Resource
-		Measure measure = readMeasureFromFile();
-		ourClient.update().resource(measure).withId(MEASURE_RESOURCE_ID).encodedJson().execute();
-
-		// post the obs bundle
-		postResource(ourServerBase, OBS_FILE_PATH);
-        try{
-		// fetch parameter result from the operation
-		Parameters result = fetchParameter(ourServerBase + MEASURE_RESOURCE_ID 
+		Measure measure = readMeasureFromXmlFile();
+		ourClient.update().resource(measure).withId(MEASURE_RESOURCE_ID).encodedXml().execute();
+		// post the obs Bundle
+		postResource(ourServerBase, OBS_FILE_XML_PATH);
+		// fetch parameter reuslt from the Operation
+		Parameters result = fetchParameter(ourServerBase + "/Measure/" + MEASURE_RESOURCE_ID
 				+ "/$collect-data?periodStart=2021-01-01&periodEnd=2021-01-31");
-		}
-		catch (Exception exception) {
-	        assertNotNull(exception);
-			assertNotNull(exception.getStackTrace());
-			assertTrue(exception.getMessage().contains("Failed to parse JSON encoded FHIR content: Did not find any content to parse"));
-			assertEquals(exception.getClass(), DataFormatException.class);
-         }	
+
+		assertTrue(result.hasParameter(PARAM_NAME1));
+		assertTrue(result.hasParameter(PARAM_NAME2));
+		assertEquals(5, result.getParameter().size());
+
+		assertTrue(result.getParameter().get(0).getResource() instanceof MeasureReport);
+		assertTrue(result.getParameter().get(1).getResource() instanceof Observation);
+		assertTrue(result.getParameter().get(2).getResource() instanceof Observation);
+		assertTrue(result.getParameter().get(3).getResource() instanceof Patient);
+		assertTrue(result.getParameter().get(4).getResource() instanceof Patient);
+		// get measure report from the Parameter Result
+		MeasureReport report = (MeasureReport) result.getParameter().get(0).getResource();
+		assertEquals(report.getEvaluatedResource().size(), 4);
+		assertEquals(report.getMeasure(), "Measure/TX_PVLS");
+		assertEquals(report.getStatus(), MeasureReport.MeasureReportStatus.COMPLETE);
+		assertEquals(report.getType(), MeasureReport.MeasureReportType.DATACOLLECTION);
+		// get Observation Bundle from the Parameter Result
+		Observation observation1 = (Observation) result.getParameter().get(1).getResource();
+		assertEquals(observation1.getCode().getCodingFirstRep().getCode(), "1305AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
+
+		Observation observation2 = (Observation) result.getParameter().get(2).getResource();
+		assertEquals(observation2.getCode().getCodingFirstRep().getCode(), "856AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
 	}
+
 	@Test
-  public void testCollectDataOperationOnXmlData() throws IOException {
-    
-    // Post the Measure Resource
-    Measure measure = readMeasureFromXmlFile();
-    ourClient.update().resource(measure).withId(MEASURE_RESOURCE_ID).encodedXml().execute();
-    // post the obs Bundle
-    postXmlResource(ourServerBase, OBS_FILE_XML_PATH);
-    // fetch parameter reuslt from the Operation
-	Parameters result = fetchXmlParameter(ourServerBase + "/Measure/" + MEASURE_RESOURCE_ID
-		+ "/$collect-data?periodStart=2021-01-01&periodEnd=2021-01-31");
+	public void shouldReturnNoResultsIfThereNoObsRecordedInTheStatedDatePeriodsOnJson() throws IOException {
 
-    assertTrue(result.hasParameter(paramName1));
-    assertTrue(result.hasParameter(paramName2));
-    assertEquals(5, result.getParameter().size());
+		// Post the Measure Resource
+		Measure measure = readMeasureFromJsonFile();
+		ourClient.update().resource(measure).withId(MEASURE_RESOURCE_ID).encodedJson().execute();
+		// post theobs BUndle
+		postResource(ourServerBase, OBS_FILE_PATH);
+		// fetch parameter reuslt from the Opration
+		Parameters result = fetchParameter(ourServerBase + "/Measure/" + MEASURE_RESOURCE_ID
+				+ "/$collect-data?periodStart=2020-01-01&periodEnd=2020-01-31");
 
-    assertTrue(result.getParameter().get(0).getResource() instanceof MeasureReport);
-    assertTrue(result.getParameter().get(1).getResource() instanceof Observation);
-    assertTrue(result.getParameter().get(2).getResource() instanceof Observation);
-    assertTrue(result.getParameter().get(3).getResource() instanceof Patient);
-    assertTrue(result.getParameter().get(4).getResource() instanceof Patient);
-    // get measure report from the Parameter Result
-    MeasureReport report = (MeasureReport) result.getParameter().get(0).getResource();
-    assertEquals(report.getEvaluatedResource().size(), 4);
-    assertEquals(report.getMeasure(), "Measure/TX_PVLS");
-    assertEquals(report.getStatus(), MeasureReport.MeasureReportStatus.COMPLETE);
-    assertEquals(report.getType(), MeasureReport.MeasureReportType.DATACOLLECTION);
-    // get Observation Bundle from the Parameter Result
-    Observation observation1 = (Observation) result.getParameter().get(1).getResource();
-    assertEquals(observation1.getCode().getCodingFirstRep().getCode(), "1305AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
+		assertTrue(result.hasParameter(PARAM_NAME1));
 
-    Observation observation2 = (Observation) result.getParameter().get(2).getResource();
-    assertEquals(observation2.getCode().getCodingFirstRep().getCode(), "856AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
-  }  
+		// no obs resources
+		assertFalse(result.hasParameter(PARAM_NAME2));
+		// returns only the empty measure report
+		assertEquals(1, result.getParameter().size());
+	}
 
-  @Test
-  public void shouldReturnNoResultsIfThereNoObsRecordedInTheStatedDatePeriods()
-      throws IOException {
-   
-    // Post the Measure Resource
-    Measure measure = readMeasureFromFile();
-    ourClient.update().resource(measure).withId(MEASURE_RESOURCE_ID).encodedJson().execute();
-    // post theobs BUndle
-    postResource(ourServerBase, OBS_FILE_PATH);
-    // fetch parameter reuslt from the Opration
-    Parameters result = fetchParameter(ourServerBase + "/Measure/" + MEASURE_RESOURCE_ID
-        + "/$collect-data?periodStart=2020-01-01&periodEnd=2020-01-31");
+	@Test
+	public void shouldReturnNoResultsIfThereNoObsRecordedInTheStatedDatePeriodsOnXml() throws IOException {
 
-	assertTrue(result.hasParameter(paramName1));
-	
-	//no obs resources 
-    assertFalse(result.hasParameter(paramName2));
-    // returns only the empty measure report 
-    assertEquals(1, result.getParameter().size());
-  }
+		// Post the Measure Resource
+		Measure measure = readMeasureFromXmlFile();
+		ourClient.update().resource(measure).withId(MEASURE_RESOURCE_ID).encodedXml().execute();
+		// post theobs BUndle
+		postResource(ourServerBase, OBS_FILE_XML_PATH);
+		// fetch parameter reuslt from the Opration
+		Parameters result = fetchParameter(ourServerBase + "/Measure/" + MEASURE_RESOURCE_ID
+				+ "/$collect-data?periodStart=2020-01-01&periodEnd=2020-01-31");
 
- @Test
- public void shouldFailIfMeasureResourceIdIsWrong() throws IOException{	
-  
-  // Post the Measure Resource
-  Measure measure = readMeasureFromFile();
-  try{
-  ourClient.update().resource(measure).withId(WRONG_MEASURE_RESOURCE_ID).encodedJson().execute();
-  }
-   catch (Exception exception) {
-	        assertNotNull(exception);
+		assertTrue(result.hasParameter(PARAM_NAME1));
+
+		// no obs resources
+		assertFalse(result.hasParameter(PARAM_NAME2));
+		// returns only the empty measure report
+		assertEquals(1, result.getParameter().size());
+	}
+
+	@Test
+	public void shouldFailIfMeasureResourceIdIsWrongAsJson() throws IOException {
+
+		// Post the Measure Resource
+		Measure measure = readMeasureFromJsonFile();
+		try {
+			ourClient.update().resource(measure).withId(WRONG_MEASURE_RESOURCE_ID).encodedJson().execute();
+		} catch (Exception exception) {
+			assertNotNull(exception);
 			assertNotNull(exception.getStackTrace());
 			assertTrue(exception.getMessage().contains("Illegal character in path at index 44:"));
 			assertEquals(exception.getClass(), IllegalArgumentException.class);
-         }
-  }
+		}
+	}
 
-  @Test
-  public void shouldReturnErrorWhenUnderScoreIsUsedInMeasureId()
-      throws  IOException {
-    // Post the Measure Resource
-    Measure measure = readMeasureFromFile();
-    Exception exception  = Assertions.assertThrows(InvalidRequestException.class,
-    () ->ourClient.update().resource(measure).withId(UNDER_SCORE_MEASURE_RESOURCE_ID).encodedJson().execute(),
-    "HTTP 400 Bad Request: Can not process entity with ID[TX_PVLS], this is not a valid FHIR ID");
-    assertNotNull(exception);
-    assertNotNull(exception.getMessage());
-    assertTrue(exception.getMessage().contains("HTTP 400 Bad Request: Can not process entity with ID[TX_PVLS], this is not a valid FHIR ID"));
-  }
+	@Test
+	public void shouldFailIfMeasureResourceIdIsWrongAsXml() throws IOException {
 
+		// Post the Measure Resource
+		Measure measure = readMeasureFromXmlFile();
+		try {
+			ourClient.update().resource(measure).withId(WRONG_MEASURE_RESOURCE_ID).encodedXml().execute();
+		} catch (Exception exception) {
+			assertNotNull(exception);
+			assertNotNull(exception.getStackTrace());
+			assertTrue(exception.getMessage().contains("Illegal character in path at index 44:"));
+			assertEquals(exception.getClass(), IllegalArgumentException.class);
+		}
+	}
+
+	@Test
+	public void shouldReturnErrorWhenUnderScoreIsUsedInMeasureIdAsJson() throws IOException {
+		// Post the Measure Resource
+		Measure measure = readMeasureFromJsonFile();
+		Exception exception = Assertions.assertThrows(InvalidRequestException.class,
+				() -> ourClient.update().resource(measure).withId(UNDER_SCORE_MEASURE_RESOURCE_ID).encodedJson()
+						.execute(),
+				"HTTP 400 Bad Request: Can not process entity with ID[TX_PVLS], this is not a valid FHIR ID");
+		assertNotNull(exception);
+		assertNotNull(exception.getMessage());
+		assertTrue(exception.getMessage().contains(
+				"HTTP 400 Bad Request: Can not process entity with ID[TX_PVLS], this is not a valid FHIR ID"));
+	}
+
+	@Test
+	public void shouldReturnErrorWhenUnderScoreIsUsedInMeasureIdAsXml() throws IOException {
+		// Post the Measure Resource
+		Measure measure = readMeasureFromXmlFile();
+		Exception exception = Assertions.assertThrows(InvalidRequestException.class,
+				() -> ourClient.update().resource(measure).withId(UNDER_SCORE_MEASURE_RESOURCE_ID).encodedJson()
+						.execute(),
+				"HTTP 400 Bad Request: Can not process entity with ID[TX_PVLS], this is not a valid FHIR ID");
+		assertNotNull(exception);
+		assertNotNull(exception.getMessage());
+		assertTrue(exception.getMessage().contains(
+				"HTTP 400 Bad Request: Can not process entity with ID[TX_PVLS], this is not a valid FHIR ID"));
+	}
 
 	@BeforeEach
 	void beforeEach() {
@@ -254,76 +280,58 @@ public class OperationCollectDataTest {
 	}
 
 	private Parameters fetchParameter(String theUrl) throws IOException {
-		 get = new HttpGet(theUrl);
+		HttpGet get = new HttpGet(theUrl);
 
 		String auth = USER_NAME + ":" + USER_PASSWORD;
 		byte[] encodedAuth = Base64.encodeBase64(auth.getBytes(StandardCharsets.ISO_8859_1));
 		String authHeader = "Basic " + new String(encodedAuth);
 		get.addHeader(HttpHeaders.AUTHORIZATION, authHeader);
-		get.addHeader(HttpHeaders.ACCEPT, "application/fhir+json");
 
 		try (CloseableHttpResponse resp = ourHttpClient.execute(get)) {
-			parameters = ourCtx.newJsonParser().parseResource(Parameters.class,
-					EntityUtils.toString(resp.getEntity(), Charsets.UTF_8));
-		}
+			IParser parser;
+			HttpEntity httpEntity = resp.getEntity();
+			Header contentType = httpEntity.getContentType();
+			String mimeType = contentType.getValue();
 
-		return parameters;
+			MediaType responseMediaType = MediaType.parseMediaType(mimeType);
+			if (FHIR_JSON_MEDIA_TYPE.isCompatibleWith(responseMediaType) || MediaType.APPLICATION_JSON.isCompatibleWith(responseMediaType)) {
+				parser = ourCtx.newJsonParser();
+			} else if (FHIR_XML_MEDIA_TYPE.isCompatibleWith(responseMediaType) || MediaType.APPLICATION_XML.isCompatibleWith(responseMediaType) || MediaType.TEXT_XML.isCompatibleWith(responseMediaType)) {
+				parser = ourCtx.newXmlParser();
+			}
+			 else {
+				throw new AssertionError("Cannot handle response of type " + responseMediaType.toString());
+			}
+	
+			return parser.parseResource(Parameters.class,
+				  EntityUtils.toString(resp.getEntity(), Charsets.ISO_8859_1));
+		}
+             
 	}
-
-	private Parameters fetchXmlParameter(String theUrl) throws IOException {
-		get = new HttpGet(theUrl);
-	
-		String auth = USER_NAME + ":" + USER_PASSWORD;
-		byte[] encodedAuth = Base64.encodeBase64(auth.getBytes(StandardCharsets.ISO_8859_1));
-		String authHeader = "Basic " + new String(encodedAuth);
-		get.addHeader(HttpHeaders.AUTHORIZATION, authHeader);
-		get.addHeader(HttpHeaders.ACCEPT, "application/fhir+xml");
-	
-		get.addHeader(Constants.HEADER_CACHE_CONTROL, Constants.CACHE_CONTROL_NO_CACHE);
-	
-		try (CloseableHttpResponse resp = ourHttpClient.execute(get)) {
-		 parameters = ourCtx.newXmlParser().parseResource(Parameters.class,
-			  EntityUtils.toString(resp.getEntity(), Charsets.UTF_8));
-		}
-		return parameters;
-	  }
 
 	private void postResource(String theUrl, String filePath)
 			throws IOException {
-		post = new HttpPost(theUrl);
-		String json = readFile(filePath);
+		HttpPost post = new HttpPost(theUrl);
 
-		StringEntity entity = new StringEntity(json, StandardCharsets.UTF_8);
+		if(FilenameUtils.getExtension(filePath).equals("json")){
+		String json = readFile(filePath);
+		StringEntity entity = new StringEntity(json, StandardCharsets.ISO_8859_1);
+		
 		post.setEntity(entity);
 		post.setHeader(HttpHeaders.ACCEPT, "application/fhir+json");
 		post.setHeader(HttpHeaders.CONTENT_TYPE, "application/fhir+json");
-
-		String auth = USER_NAME + ":" + USER_PASSWORD;
-		byte[] encodedAuth = Base64.encodeBase64(auth.getBytes(StandardCharsets.ISO_8859_1));
-		String authHeader = "Basic " + new String(encodedAuth);
-		post.addHeader(HttpHeaders.AUTHORIZATION, authHeader);
-
-		post.addHeader(Constants.HEADER_CACHE_CONTROL, Constants.CACHE_CONTROL_NO_CACHE);
-
-		try (CloseableHttpResponse res = ourHttpClient.execute(post)) {
-			if (res.getStatusLine().getStatusCode() != 200) {
-				throw new IllegalStateException(
-						"Attempting to POST resource bundle failed with status code " + res.getStatusLine().getStatusCode()
-								+ " " + EntityUtils.toString(res.getEntity(), StandardCharsets.UTF_8));
-			}
-		}
-	}
-
-	private void postXmlResource(String theUrl, String filePath)
-			throws IOException {
-		post = new HttpPost(theUrl);
+		} else if(FilenameUtils.getExtension(filePath).equals("xml")){
 		String xml = readFile(filePath);
+		StringEntity entity = new StringEntity(xml, StandardCharsets.ISO_8859_1);
 
-		StringEntity entity = new StringEntity(xml, StandardCharsets.UTF_8);
 		post.setEntity(entity);
 		post.setHeader(HttpHeaders.ACCEPT, "application/fhir+xml");
 		post.setHeader(HttpHeaders.CONTENT_TYPE, "application/fhir+xml");
-
+		}
+		else {
+			 	throw new AssertionError("Cannot handle post content type ");
+			 }
+		
 		String auth = USER_NAME + ":" + USER_PASSWORD;
 		byte[] encodedAuth = Base64.encodeBase64(auth.getBytes(StandardCharsets.ISO_8859_1));
 		String authHeader = "Basic " + new String(encodedAuth);
@@ -332,7 +340,6 @@ public class OperationCollectDataTest {
 		post.addHeader(Constants.HEADER_CACHE_CONTROL, Constants.CACHE_CONTROL_NO_CACHE);
 
 		try (CloseableHttpResponse res = ourHttpClient.execute(post)) {
-
 			if (res.getStatusLine().getStatusCode() != 200) {
 				throw new IllegalStateException(
 						"Attempting to POST resource bundle failed with status code " + res.getStatusLine().getStatusCode()
@@ -340,7 +347,6 @@ public class OperationCollectDataTest {
 			}
 		}
 	}
-
 	private String readFile(String path) throws IOException {
 		return FileUtils.readFileToString(new File(path), StandardCharsets.UTF_8);
 	}
@@ -353,7 +359,7 @@ public class OperationCollectDataTest {
 		ourClient.registerInterceptor(authInterceptor);
 	}
 
-	public Measure readMeasureFromFile() throws IOException {
+	public Measure readMeasureFromJsonFile() throws IOException {
 		String json = readFile(MEASURE_FILE_PATH);
 
 		IParser parser = ourCtx.newJsonParser();
