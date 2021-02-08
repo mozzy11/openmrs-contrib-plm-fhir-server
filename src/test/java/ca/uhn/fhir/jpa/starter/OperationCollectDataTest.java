@@ -283,7 +283,7 @@ public class OperationCollectDataTest {
 		HttpGet get = new HttpGet(theUrl);
 
 		String auth = USER_NAME + ":" + USER_PASSWORD;
-		byte[] encodedAuth = Base64.encodeBase64(auth.getBytes(StandardCharsets.ISO_8859_1));
+		byte[] encodedAuth = Base64.encodeBase64(auth.getBytes(StandardCharsets.UTF_8));
 		String authHeader = "Basic " + new String(encodedAuth);
 		get.addHeader(HttpHeaders.AUTHORIZATION, authHeader);
 
@@ -304,7 +304,7 @@ public class OperationCollectDataTest {
 			}
 	
 			return parser.parseResource(Parameters.class,
-				  EntityUtils.toString(resp.getEntity(), Charsets.ISO_8859_1));
+				  EntityUtils.toString(resp.getEntity(), Charsets.UTF_8));
 		}
              
 	}
@@ -315,14 +315,14 @@ public class OperationCollectDataTest {
 
 		if(FilenameUtils.getExtension(filePath).equals("json")){
 		String json = readFile(filePath);
-		StringEntity entity = new StringEntity(json, StandardCharsets.ISO_8859_1);
+		StringEntity entity = new StringEntity(json, StandardCharsets.UTF_8);
 		
 		post.setEntity(entity);
 		post.setHeader(HttpHeaders.ACCEPT, "application/fhir+json");
 		post.setHeader(HttpHeaders.CONTENT_TYPE, "application/fhir+json");
 		} else if(FilenameUtils.getExtension(filePath).equals("xml")){
 		String xml = readFile(filePath);
-		StringEntity entity = new StringEntity(xml, StandardCharsets.ISO_8859_1);
+		StringEntity entity = new StringEntity(xml, StandardCharsets.UTF_8);
 
 		post.setEntity(entity);
 		post.setHeader(HttpHeaders.ACCEPT, "application/fhir+xml");
@@ -333,7 +333,7 @@ public class OperationCollectDataTest {
 			 }
 		
 		String auth = USER_NAME + ":" + USER_PASSWORD;
-		byte[] encodedAuth = Base64.encodeBase64(auth.getBytes(StandardCharsets.ISO_8859_1));
+		byte[] encodedAuth = Base64.encodeBase64(auth.getBytes(StandardCharsets.UTF_8));
 		String authHeader = "Basic " + new String(encodedAuth);
 		post.addHeader(HttpHeaders.AUTHORIZATION, authHeader);
 
