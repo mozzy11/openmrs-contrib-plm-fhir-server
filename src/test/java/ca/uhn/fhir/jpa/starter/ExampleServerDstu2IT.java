@@ -1,6 +1,7 @@
 package ca.uhn.fhir.jpa.starter;
 
 import ca.uhn.fhir.context.FhirContext;
+import ca.uhn.fhir.jpa.starter.util.OpenmrsAuthInterceptor;
 import ca.uhn.fhir.model.dstu2.resource.Patient;
 import ca.uhn.fhir.rest.client.api.IClientInterceptor;
 import ca.uhn.fhir.rest.client.api.IGenericClient;
@@ -11,6 +12,7 @@ import org.hl7.fhir.instance.model.api.IIdType;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.web.server.LocalServerPort;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
@@ -29,6 +31,9 @@ public class ExampleServerDstu2IT {
 	private static final org.slf4j.Logger ourLog = org.slf4j.LoggerFactory.getLogger(ExampleServerDstu2IT.class);
 	private IGenericClient ourClient;
 	private FhirContext ourCtx;
+
+	@Autowired
+	private OpenmrsAuthInterceptor authInterceptor;
 
   @LocalServerPort
   private int port;
@@ -55,11 +60,6 @@ public class ExampleServerDstu2IT {
 		String ourServerBase = "http://localhost:" + port + "/fhir/";
 		ourClient = ourCtx.newRestfulGenericClient(ourServerBase);
 		ourClient.registerInterceptor(new LoggingInterceptor(true));
-		
-		//Create an HTTP basic auth interceptor
-		String username = "hapi";
-		String password = "hapi123";
-		IClientInterceptor authInterceptor = new BasicAuthInterceptor(username, password);
 		ourClient.registerInterceptor(authInterceptor);
 	}
 }

@@ -1,0 +1,14 @@
+{
+  "properties": [
+    {
+      "name": "openmrs.login.username",
+      "type": "java.lang.String",
+      "description": "User name for basic authentication."
+    },
+    {
+      "name": "openmrs.login.password",
+      "type": "java.lang.String",
+      "description": "Password for login user."
+    }
+  ]
+}

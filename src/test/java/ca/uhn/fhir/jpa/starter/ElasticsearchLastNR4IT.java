@@ -3,6 +3,7 @@ package ca.uhn.fhir.jpa.starter;
 import ca.uhn.fhir.context.ConfigurationException;
 import ca.uhn.fhir.context.FhirContext;
 import ca.uhn.fhir.jpa.search.lastn.ElasticsearchSvcImpl;
+import ca.uhn.fhir.jpa.starter.util.OpenmrsAuthInterceptor;
 import ca.uhn.fhir.rest.client.api.IClientInterceptor;
 import ca.uhn.fhir.rest.client.api.IGenericClient;
 import ca.uhn.fhir.rest.client.api.ServerValidationModeEnum;
@@ -70,6 +71,9 @@ public class ElasticsearchLastNR4IT {
   @Autowired
   private ElasticsearchSvcImpl myElasticsearchSvc;
 
+  @Autowired
+  private OpenmrsAuthInterceptor authInterceptor;
+
   @BeforeAll
   public static void beforeClass() {
 	  embeddedElastic = new ElasticsearchContainer(ELASTIC_IMAGE).withStartupTimeout(Duration.of(300, ChronoUnit.SECONDS));
@@ -122,10 +126,6 @@ public class ElasticsearchLastNR4IT {
     String ourServerBase = "http://localhost:" + port + "/fhir/";
     ourClient = ourCtx.newRestfulGenericClient(ourServerBase);
     ourClient.registerInterceptor(new LoggingInterceptor(true));
-
-    String username = "hapi";
-    String password = "hapi123";
-    IClientInterceptor authInterceptor = new BasicAuthInterceptor(username, password);
     ourClient.registerInterceptor(authInterceptor); 
   }
 

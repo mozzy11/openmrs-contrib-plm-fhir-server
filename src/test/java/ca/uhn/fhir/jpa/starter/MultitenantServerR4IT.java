@@ -1,6 +1,7 @@
 package ca.uhn.fhir.jpa.starter;
 
 import ca.uhn.fhir.context.FhirContext;
+import ca.uhn.fhir.jpa.starter.util.OpenmrsAuthInterceptor;
 import ca.uhn.fhir.rest.api.CacheControlDirective;
 import ca.uhn.fhir.rest.client.api.IClientInterceptor;
 import ca.uhn.fhir.rest.client.api.IGenericClient;
@@ -13,6 +14,7 @@ import org.hl7.fhir.r4.model.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.web.server.LocalServerPort;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
@@ -41,6 +43,8 @@ public class MultitenantServerR4IT {
 
   private static UrlTenantSelectionInterceptor ourClientTenantInterceptor;
 
+  @Autowired
+  private OpenmrsAuthInterceptor authInterceptor;
 
   @Test
   public void testCreateAndReadInTenantA() {
@@ -105,11 +109,6 @@ public class MultitenantServerR4IT {
     ourClient = ourCtx.newRestfulGenericClient(ourServerBase);
     ourClient.registerInterceptor(new LoggingInterceptor(true));
     ourClient.registerInterceptor(ourClientTenantInterceptor);
-    
-    //Create an HTTP basic auth interceptor
-    String username = "hapi";
-    String password = "hapi123";
-    IClientInterceptor authInterceptor = new BasicAuthInterceptor(username, password);
     ourClient.registerInterceptor(authInterceptor);
   }
 }

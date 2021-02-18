@@ -2,6 +2,7 @@ package ca.uhn.fhir.jpa.starter;
 
 import ca.uhn.fhir.context.FhirContext;
 import ca.uhn.fhir.jpa.api.dao.DaoRegistry;
+import ca.uhn.fhir.jpa.starter.util.OpenmrsAuthInterceptor;
 import ca.uhn.fhir.model.primitive.IdDt;
 import ca.uhn.fhir.rest.api.CacheControlDirective;
 import ca.uhn.fhir.rest.api.EncodingEnum;
@@ -61,6 +62,9 @@ public class ExampleServerDstu3IT implements IServerSupport {
   @Autowired
   DaoRegistry myDaoRegistry;
 
+  @Autowired
+  private OpenmrsAuthInterceptor authInterceptor;
+
   @LocalServerPort
   private int port;
 
@@ -72,11 +76,6 @@ public class ExampleServerDstu3IT implements IServerSupport {
     String ourServerBase = "http://localhost:" + port + "/fhir/";
     ourClient = ourCtx.newRestfulGenericClient(ourServerBase);
     ourClient.registerInterceptor(new LoggingInterceptor(true));
-
-    //Create an HTTP basic auth interceptor
-    String username = "hapi";
-    String password = "hapi123";
-    IClientInterceptor authInterceptor = new BasicAuthInterceptor(username, password);
     ourClient.registerInterceptor(authInterceptor);
   }
 

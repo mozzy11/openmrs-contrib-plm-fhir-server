@@ -5,6 +5,7 @@ import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import ca.uhn.fhir.context.FhirContext;
+import ca.uhn.fhir.jpa.starter.util.OpenmrsAuthInterceptor;
 import ca.uhn.fhir.rest.api.CacheControlDirective;
 import ca.uhn.fhir.rest.api.EncodingEnum;
 import ca.uhn.fhir.rest.api.MethodOutcome;
@@ -29,6 +30,7 @@ import org.hl7.fhir.r5.model.SubscriptionTopic;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.web.server.LocalServerPort;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
@@ -51,6 +53,8 @@ public class ExampleServerR5IT {
   @LocalServerPort
   private int port;
 
+  @Autowired
+  private OpenmrsAuthInterceptor authInterceptor;
 
   @Test
   public void testCreateAndRead() {
@@ -135,11 +139,6 @@ public class ExampleServerR5IT {
     String ourServerBase = "http://localhost:" + port + "/fhir/";
     ourClient = ourCtx.newRestfulGenericClient(ourServerBase);
     ourClient.registerInterceptor(new LoggingInterceptor(true));
-    
-    //Create an HTTP basic auth interceptor
-    String username = "hapi";
-    String password = "hapi123";
-    IClientInterceptor authInterceptor = new BasicAuthInterceptor(username, password);
     ourClient.registerInterceptor(authInterceptor);
   }
 }

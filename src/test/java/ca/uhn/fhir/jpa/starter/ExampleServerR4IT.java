@@ -1,13 +1,12 @@
 package ca.uhn.fhir.jpa.starter;
 
 import ca.uhn.fhir.context.FhirContext;
+import ca.uhn.fhir.jpa.starter.util.OpenmrsAuthInterceptor;
 import ca.uhn.fhir.rest.api.CacheControlDirective;
 import ca.uhn.fhir.rest.api.EncodingEnum;
 import ca.uhn.fhir.rest.api.MethodOutcome;
-import ca.uhn.fhir.rest.client.api.IClientInterceptor;
 import ca.uhn.fhir.rest.client.api.IGenericClient;
 import ca.uhn.fhir.rest.client.api.ServerValidationModeEnum;
-import ca.uhn.fhir.rest.client.interceptor.BasicAuthInterceptor;
 import ca.uhn.fhir.util.BundleUtil;
 import org.eclipse.jetty.websocket.api.Session;
 import org.eclipse.jetty.websocket.client.ClientUpgradeRequest;
@@ -21,6 +20,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.web.server.LocalServerPort;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
@@ -58,6 +58,8 @@ public class ExampleServerR4IT {
 	@LocalServerPort
 	private int port;
 
+	@Autowired
+	private OpenmrsAuthInterceptor authInterceptor;
 
 	@Test
 	@Order(0)
@@ -171,18 +173,12 @@ public class ExampleServerR4IT {
 
 	@BeforeEach
 	void beforeEach() {
-
 		ourCtx = FhirContext.forR4();
 		ourCtx.getRestfulClientFactory().setServerValidationMode(ServerValidationModeEnum.NEVER);
 		ourCtx.getRestfulClientFactory().setSocketTimeout(1200 * 1000);
 		String ourServerBase = "http://localhost:" + port + "/fhir/";
 		ourClient = ourCtx.newRestfulGenericClient(ourServerBase);
 //		ourClient.registerInterceptor(new LoggingInterceptor(false));
-
-		//Create an HTTP basic auth interceptor
-		String username = "hapi";
-		String password = "hapi123";
-		IClientInterceptor authInterceptor = new BasicAuthInterceptor(username, password);
 		ourClient.registerInterceptor(authInterceptor);
 	}
 }

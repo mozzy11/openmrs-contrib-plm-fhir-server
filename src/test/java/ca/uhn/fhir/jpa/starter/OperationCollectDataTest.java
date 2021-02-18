@@ -10,13 +10,12 @@ import java.lang.IllegalArgumentException;
 import java.nio.charset.StandardCharsets;
 
 import ca.uhn.fhir.context.FhirContext;
+import ca.uhn.fhir.jpa.starter.util.OpenmrsAuthInterceptor;
 import ca.uhn.fhir.parser.IParser;
 import ca.uhn.fhir.parser.StrictErrorHandler;
 import ca.uhn.fhir.rest.api.Constants;
-import ca.uhn.fhir.rest.client.api.IClientInterceptor;
 import ca.uhn.fhir.rest.client.api.IGenericClient;
 import ca.uhn.fhir.rest.client.api.ServerValidationModeEnum;
-import ca.uhn.fhir.rest.client.interceptor.BasicAuthInterceptor;
 import ca.uhn.fhir.rest.client.interceptor.LoggingInterceptor;
 import ca.uhn.fhir.rest.server.exceptions.InvalidRequestException;
 import com.google.common.base.Charsets;
@@ -42,6 +41,8 @@ import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.web.server.LocalServerPort;
 import org.springframework.http.MediaType;
@@ -58,7 +59,8 @@ import org.springframework.test.context.junit.jupiter.SpringExtension;
 		// Override is currently required when using Empi as the construction of the
 		// Empi beans are ambiguous as they are constructed multiple places. This is
 		// evident when running in a spring boot environment
-		"spring.main.allow-bean-definition-overriding=true" })
+		"spring.main.allow-bean-definition-overriding=true"
+})
 public class OperationCollectDataTest {
 
 	private static final String OBS_FILE_PATH = "ObsBundle.json";
@@ -79,17 +81,19 @@ public class OperationCollectDataTest {
 
 	private static final String WRONG_MEASURE_RESOURCE_ID = "TX-JDFG";
 
-	private static final String USER_NAME = "hapi";
-
-	private static final String USER_PASSWORD = "hapi123";
-
 	private static final String PARAM_NAME1 = "measureReport";
 
 	private static final String PARAM_NAME2 = "resource";
 
-	protected static CloseableHttpClient ourHttpClient;
+	@Value("${openmrs.login.username}")
+	private String username;
 
-	protected static String ourServerBase;
+	@Value("${openmrs.login.password}")
+	private String password;
+
+	protected CloseableHttpClient ourHttpClient;
+
+	protected String ourServerBase;
 
 	private IGenericClient ourClient;
 
@@ -97,6 +101,9 @@ public class OperationCollectDataTest {
 
 	@LocalServerPort
 	private int port;
+
+	@Autowired
+	private OpenmrsAuthInterceptor authInterceptor;
 
 	@Test
 	public void testCollectDataOperationOnJsonData() throws IOException {
@@ -177,9 +184,9 @@ public class OperationCollectDataTest {
 		// Post the Measure Resource
 		Measure measure = readMeasureFromJsonFile();
 		ourClient.update().resource(measure).withId(MEASURE_RESOURCE_ID).encodedJson().execute();
-		// post theobs BUndle
+		// post the obs bundle
 		postResource(ourServerBase, OBS_FILE_PATH);
-		// fetch parameter reuslt from the Opration
+		// fetch parameter result from the operation
 		Parameters result = fetchParameter(ourServerBase + "/Measure/" + MEASURE_RESOURCE_ID
 				+ "/$collect-data?periodStart=2020-01-01&periodEnd=2020-01-31");
 
@@ -284,7 +291,7 @@ public class OperationCollectDataTest {
 	private Parameters fetchParameter(String theUrl) throws IOException {
 		HttpGet get = new HttpGet(theUrl);
 
-		String auth = USER_NAME + ":" + USER_PASSWORD;
+		String auth = username + ":" + password;
 		byte[] encodedAuth = Base64.encodeBase64(auth.getBytes(StandardCharsets.UTF_8));
 		String authHeader = "Basic " + new String(encodedAuth);
 		get.addHeader(HttpHeaders.AUTHORIZATION, authHeader);
@@ -332,8 +339,8 @@ public class OperationCollectDataTest {
 		} else {
 			throw new AssertionError("Cannot handle post content type ");
 		}
-		
-		String auth = USER_NAME + ":" + USER_PASSWORD;
+
+		String auth = username + ":" + password;
 		byte[] encodedAuth = Base64.encodeBase64(auth.getBytes(StandardCharsets.UTF_8));
 		String authHeader = "Basic " + new String(encodedAuth);
 		post.addHeader(HttpHeaders.AUTHORIZATION, authHeader);
@@ -356,8 +363,6 @@ public class OperationCollectDataTest {
 	private void setHapiClient() {
 		ourClient = ourCtx.newRestfulGenericClient(ourServerBase);
 		ourClient.registerInterceptor(new LoggingInterceptor(true));
-		// Create an HTTP basic auth interceptor
-		IClientInterceptor authInterceptor = new BasicAuthInterceptor(USER_NAME, USER_PASSWORD);
 		ourClient.registerInterceptor(authInterceptor);
 	}
 

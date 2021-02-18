@@ -2,7 +2,6 @@ package ca.uhn.fhir.jpa.starter;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Import;
-import ca.uhn.fhir.context.FhirVersionEnum;
 
 import javax.servlet.ServletException;
 
@@ -11,6 +10,9 @@ public class JpaRestfulServer extends BaseJpaRestfulServer {
 
   @Autowired
   AppProperties appProperties;
+
+  @Autowired
+  AuthenticationInterceptor authenticationInterceptor;
 
   private static final long serialVersionUID = 1L;
 
@@ -22,7 +24,8 @@ public class JpaRestfulServer extends BaseJpaRestfulServer {
   protected void initialize() throws ServletException {
     super.initialize();
 
-    this.registerInterceptor(new AuthenticationInterceptor());
+    // Add your own customization here
+    this.registerInterceptor(authenticationInterceptor);
   }
 
 }
