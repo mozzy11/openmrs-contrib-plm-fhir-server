@@ -1,26 +1,34 @@
 {
-    "resourceType": "Measure",
-    "id": "TX-PVLS",
-    "identifier": [{
-        "use": "official",
-        "value": "TX_PVLS"
-    }],
-    "version": "0.0.1",
-    "title": "Sample TX_PVLS population selection criteria",
-    "status": "draft",
-    "experimental": true,
-    "group": [{
-        "id": "population",
-        "population": [{
-            "code": {
-                "coding": [{
-                    "code": "initial-population"
-                }]
-            },
-            "criteria": {
-                "language": "application/x-fhir-query",
-                "expression": "Observation?code=856AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA,1305AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA&_include=Observation:patient"
-            }
-        }]
-    }]
+  "resourceType": "Measure",
+  "id": "TX-PVLS",
+  "identifier": [
+    {
+      "use": "official",
+      "value": "TX_PVLS"
+    }
+  ],
+  "version": "0.0.1",
+  "title": "Sample TX_PVLS population selection criteria",
+  "status": "draft",
+  "experimental": true,
+  "group": [
+    {
+      "id": "population",
+      "population": [
+        {
+          "code": {
+            "coding": [
+              {
+                "code": "initial-population"
+              }
+            ]
+          },
+          "criteria": {
+            "language": "application/x-fhir-query",
+            "expression": "Observation?code=856AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA,1305AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA&_include=Observation:patient"
+          }
+        }
+      ]
+    }
+  ]
 }

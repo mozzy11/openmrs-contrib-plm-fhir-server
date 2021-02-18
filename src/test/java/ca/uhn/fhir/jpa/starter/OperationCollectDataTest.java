@@ -5,7 +5,6 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.io.File;
 import java.io.IOException;
 import java.lang.IllegalArgumentException;
 import java.nio.charset.StandardCharsets;
@@ -22,7 +21,6 @@ import ca.uhn.fhir.rest.client.interceptor.LoggingInterceptor;
 import ca.uhn.fhir.rest.server.exceptions.InvalidRequestException;
 import com.google.common.base.Charsets;
 import org.apache.commons.codec.binary.Base64;
-import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.http.Header;
@@ -51,21 +49,25 @@ import org.springframework.test.context.junit.jupiter.SpringExtension;
 
 @ExtendWith(SpringExtension.class)
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, classes = Application.class, properties = {
-		"spring.batch.job.enabled=false", "spring.datasource.url=jdbc:h2:mem:dbr4", "hapi.fhir.fhir_version=r4",
-		"hapi.fhir.subscription.websocket_enabled=true", "hapi.fhir.empi_enabled=true",
+		"spring.batch.job.enabled=false",
+		"spring.datasource.url=jdbc:h2:mem:dbr4",
+		"hapi.fhir.fhir_version=r4",
+		"hapi.fhir.subscription.websocket_enabled=false",
+		"hapi.fhir.empi_enabled=false",
+		"hapi.fhir.auto_create_placeholder_reference_targets=true",
 		// Override is currently required when using Empi as the construction of the
 		// Empi beans are ambiguous as they are constructed multiple places. This is
 		// evident when running in a spring boot environment
 		"spring.main.allow-bean-definition-overriding=true" })
 public class OperationCollectDataTest {
 
-	private static final String OBS_FILE_PATH = "src/test/resources/ObsBundle.json";
+	private static final String OBS_FILE_PATH = "ObsBundle.json";
 
-	private static final String MEASURE_FILE_PATH = "src/test/resources/FhirMeasure.json";
+	private static final String MEASURE_FILE_PATH = "FhirMeasure.json";
 
-	private static String OBS_FILE_XML_PATH = "src/test/resources/ObsBundle.xml";
+	private static String OBS_FILE_XML_PATH = "ObsBundle.xml";
 
-	private static String MEASURE_XML_FILE_PATH = "src/test/resources/FhirMeasure.xml";
+	private static String MEASURE_XML_FILE_PATH = "FhirMeasure.xml";
 
 	public static final MediaType FHIR_JSON_MEDIA_TYPE = MediaType.valueOf("application/fhir+json");
 
@@ -73,23 +75,23 @@ public class OperationCollectDataTest {
 
 	private static final String MEASURE_RESOURCE_ID = "TX-PVLS";
 
-	private static String UNDER_SCORE_MEASURE_RESOURCE_ID = "TX_PVLS";
+	private static final String UNDER_SCORE_MEASURE_RESOURCE_ID = "TX_PVLS";
 
-	private static String WRONG_MEASURE_RESOURCE_ID = "TX-JDFG";
+	private static final String WRONG_MEASURE_RESOURCE_ID = "TX-JDFG";
 
 	private static final String USER_NAME = "hapi";
 
 	private static final String USER_PASSWORD = "hapi123";
+
+	private static final String PARAM_NAME1 = "measureReport";
+
+	private static final String PARAM_NAME2 = "resource";
 
 	protected static CloseableHttpClient ourHttpClient;
 
 	protected static String ourServerBase;
 
 	private IGenericClient ourClient;
-
-	private static String PARAM_NAME1 = "measureReport";
-
-	private static String PARAM_NAME2 = "resource";
 
 	private FhirContext ourCtx;
 
@@ -142,7 +144,7 @@ public class OperationCollectDataTest {
 		ourClient.update().resource(measure).withId(MEASURE_RESOURCE_ID).encodedXml().execute();
 		// post the obs Bundle
 		postResource(ourServerBase, OBS_FILE_XML_PATH);
-		// fetch parameter reuslt from the Operation
+		// fetch parameter result from the Operation
 		Parameters result = fetchParameter(ourServerBase + "/Measure/" + MEASURE_RESOURCE_ID
 				+ "/$collect-data?periodStart=2021-01-01&periodEnd=2021-01-31");
 
@@ -195,9 +197,9 @@ public class OperationCollectDataTest {
 		// Post the Measure Resource
 		Measure measure = readMeasureFromXmlFile();
 		ourClient.update().resource(measure).withId(MEASURE_RESOURCE_ID).encodedXml().execute();
-		// post theobs BUndle
+		// post the obs bundle
 		postResource(ourServerBase, OBS_FILE_XML_PATH);
-		// fetch parameter reuslt from the Opration
+		// fetch parameter result from the operation
 		Parameters result = fetchParameter(ourServerBase + "/Measure/" + MEASURE_RESOURCE_ID
 				+ "/$collect-data?periodStart=2020-01-01&periodEnd=2020-01-31");
 
@@ -313,24 +315,23 @@ public class OperationCollectDataTest {
 			throws IOException {
 		HttpPost post = new HttpPost(theUrl);
 
-		if(FilenameUtils.getExtension(filePath).equals("json")){
-		String json = readFile(filePath);
-		StringEntity entity = new StringEntity(json, StandardCharsets.UTF_8);
-		
-		post.setEntity(entity);
-		post.setHeader(HttpHeaders.ACCEPT, "application/fhir+json");
-		post.setHeader(HttpHeaders.CONTENT_TYPE, "application/fhir+json");
-		} else if(FilenameUtils.getExtension(filePath).equals("xml")){
-		String xml = readFile(filePath);
-		StringEntity entity = new StringEntity(xml, StandardCharsets.UTF_8);
+		if (FilenameUtils.getExtension(filePath).equals("json")) {
+			String json = readFile(filePath);
+			StringEntity entity = new StringEntity(json, StandardCharsets.UTF_8);
 
-		post.setEntity(entity);
-		post.setHeader(HttpHeaders.ACCEPT, "application/fhir+xml");
-		post.setHeader(HttpHeaders.CONTENT_TYPE, "application/fhir+xml");
+			post.setEntity(entity);
+			post.setHeader(HttpHeaders.ACCEPT, FHIR_JSON_MEDIA_TYPE.toString());
+			post.setHeader(HttpHeaders.CONTENT_TYPE, FHIR_JSON_MEDIA_TYPE.toString());
+		} else if (FilenameUtils.getExtension(filePath).equals("xml")) {
+			String xml = readFile(filePath);
+			StringEntity entity = new StringEntity(xml, StandardCharsets.UTF_8);
+
+			post.setEntity(entity);
+			post.setHeader(HttpHeaders.ACCEPT, FHIR_XML_MEDIA_TYPE.toString());
+			post.setHeader(HttpHeaders.CONTENT_TYPE, FHIR_XML_MEDIA_TYPE.toString());
+		} else {
+			throw new AssertionError("Cannot handle post content type ");
 		}
-		else {
-			 	throw new AssertionError("Cannot handle post content type ");
-			 }
 		
 		String auth = USER_NAME + ":" + USER_PASSWORD;
 		byte[] encodedAuth = Base64.encodeBase64(auth.getBytes(StandardCharsets.UTF_8));
@@ -347,8 +348,9 @@ public class OperationCollectDataTest {
 			}
 		}
 	}
+
 	private String readFile(String path) throws IOException {
-		return FileUtils.readFileToString(new File(path), StandardCharsets.UTF_8);
+		return IOUtils.toString(getClass().getClassLoader().getResourceAsStream(path), StandardCharsets.UTF_8);
 	}
 
 	private void setHapiClient() {
